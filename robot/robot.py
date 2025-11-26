@@ -18,8 +18,6 @@
 
 import sys
 import math
-import time
-import traceback
 from typing import Optional
 
 from commands2 import TimedCommandRobot, CommandScheduler
@@ -32,7 +30,7 @@ from rev import SparkFlex, SparkMax, SparkLowLevel, SparkClosedLoopController
 from frc_2025 import constants
 
 from frc_2025.robotcontainer import RobotContainer
-from util.telemetry import Telemetry
+from util import Telemetry
 from version import VERSION
 
 # Setup Logging
