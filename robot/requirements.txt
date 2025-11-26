@@ -1,0 +1,49 @@
+# ------------------------------------------------------------------------ #
+#      o-o      o                o                                         #
+#     /         |                |                                         #
+#    O     o  o O-o  o-o o-o     |  oo o--o o-o o-o                        #
+#     \    |  | |  | |-' |   \   o | | |  |  /   /                         #
+#      o-o o--O o-o  o-o o    o-o  o-o-o--O o-o o-o                        #
+#             |                           |                                #
+#          o--o                        o--o                                #
+#                        o--o      o         o                             #
+#                        |   |     |         |  o                          #
+#                        O-Oo  o-o O-o  o-o -o-    o-o o-o                 #
+#                        |  \  | | |  | | |  |  | |     \                  #
+#                        o   o o-o o-o  o-o  o  |  o-o o-o                 #
+#                                                                          #
+#    Jemison High School - Huntsville Alabama                              #
+# ------------------------------------------------------------------------ #
+
+robotpy             == 2025.3.2.2   # Main module and CLI for the robotics platform
+robotpy-apriltag                    # Not part of actual FRC robot, but we want to test  with it
+robotpy-commands-v2
+robotpy-pathplannerlib
+robotpy-navx
+robotpy-rev
+phoenix6
+
+
+# ###############################################################################
+# # Following are for OpenTelemetry support. None of the files below
+# # are needed for competition. They are useful during development so
+# # that we can trace what software paths are taken and observe the
+# # timing.
+# opentelemetry-exporter-otlp == 1.38.0
+# otel-extensions             == 1.1.0
+#
+# # The next provides for auto-instrumentation and starting
+# # with the second line are the modules installed with
+# # the OpenTelemetry bootstrap install command.
+# opentelemetry-distro                         == 0.59b0
+# #
+# opentelemetry-instrumentation-asyncio        == 0.59b0
+# opentelemetry-instrumentation-dbapi          == 0.59b0
+# opentelemetry-instrumentation-logging        == 0.59b0
+# opentelemetry-instrumentation-urllib         == 0.59b0
+# opentelemetry-util-http                      == 0.59b0
+# opentelemetry-instrumentation-wsgi           == 0.59b0
+# opentelemetry-instrumentation-grpc           == 0.59b0
+# opentelemetry-instrumentation-requests       == 0.59b0
+# opentelemetry-instrumentation-system-metrics == 0.59b0
+# opentelemetry-instrumentation-urllib3        == 0.59b0

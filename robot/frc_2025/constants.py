@@ -1,0 +1,103 @@
+# ------------------------------------------------------------------------ #
+#      o-o      o                o                                         #
+#     /         |                |                                         #
+#    O     o  o O-o  o-o o-o     |  oo o--o o-o o-o                        #
+#     \    |  | |  | |-' |   \   o | | |  |  /   /                         #
+#      o-o o--O o-o  o-o o    o-o  o-o-o--O o-o o-o                        #
+#             |                           |                                #
+#          o--o                        o--o                                #
+#                        o--o      o         o                             #
+#                        |   |     |         |  o                          #
+#                        O-Oo  o-o O-o  o-o -o-    o-o o-o                 #
+#                        |  \  | | |  | | |  |  | |     \                  #
+#                        o   o o-o o-o  o-o  o  |  o-o o-o                 #
+#                                                                          #
+#    Jemison High School - Huntsville Alabama                              #
+# ------------------------------------------------------------------------ #
+#
+# Constants for source in this subdirectory will go here
+import math
+import os
+
+from phoenix6.controls.position_voltage import PositionVoltage
+from wpimath import units, geometry
+
+###############################################################################
+# OPENTelemetry Support
+OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", default="cyberjagzz")
+OTEL_TRACE_EXPORTER = os.getenv("OTEL_TRACE_EXPORTER", default="console,otlp")
+OTEL_METRICS_EXPORTER = os.getenv("OTEL_METRICS_EXPORTER", default="console")
+OTEL_OLTP_ENDPOINT = os.getenv("OTEL_OLTP_ENDPOINT", default="supermicro:4317")
+
+# Constants from the 2025 JAVA program for the CyberJagzz robot
+#
+# The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean constants. This
+# class should not be used for any other purpose. All constants should be declared globally (i.e. public static). Do
+# not put anything functional in this class.
+
+ROBOT_MASS = units.lbsToKilograms(148 - 20.3)  # 32lbs * kg per pound
+# CHASSIS    = Matter(geometry.Translation3d(0, 0, units.inchesToMeters(8)), ROBOT_MASS)        TODO: Figure this out
+LOOP_TIME  = 0.13                       #  seconds, 20ms + 110ms sprk max velocity lag
+MAX_SPEED  = units.feetToMeters(14.5)   #  Maximum speed of the robot in meters per second, used to limit acceleration.
+
+D_CORAL_INTAKE_SPEED = 0.1
+D_SHOOT_SPEED = 0.5
+D_ALGE_INTAKE_SPEED = -0.25
+D_ALGE_HOLD_SPEED = -0.05
+D_ALGE_GRABBER_GRAB = -0.25
+D_ALGE_GRABBER_HOLD = -0.05
+D_ALGE_GRABBER_SHOOT = 0.25
+I_INTAKE_EXTEND_MAX = 100
+
+EL_POS_L0 = PositionVoltage(0.0, slot=0)
+EL_POS_L1 = PositionVoltage(0.0, slot=0)
+EL_POS_L2 = PositionVoltage(0.0, slot=0)
+EL_POS_L3 = PositionVoltage(0.0, slot=0)
+EL_POS_IN = PositionVoltage(0.0, slot=0)
+
+I_ALGE_ROTATION_IN = 0
+I_ALGE_ROTATION_OUT = 1
+
+
+# class DrivebaseConstants:
+    # Hold time on motor brakes when disabled
+WHEEL_LOCK_TIME = 10  # seconds
+
+
+# class OperatorConstants:
+    # Joystick Deadband
+DEADBAND        = 0.1
+LEFT_Y_DEADBAND = 0.1
+RIGHT_X_DEADBAND = 0.1
+TURN_CONSTANT    = 6
+
+#  TODO: Following were created by the 'robotpy' init command.  Not sure if we need them
+#
+# class DriveConstants:
+#     # The PWM IDs for the drivetrain motor controllers.
+#     kLeftMotor1Port = 0
+#     kLeftMotor2Port = 1
+#     kRightMotor1Port = 2
+#     kRightMotor2Port = 3
+#
+#     # Encoders and their respective motor controllers.
+#     kLeftEncoderPorts = (0, 1)
+#     kRightEncoderPorts = (2, 3)
+#     kLeftEncoderReversed = False
+#     kRightEncoderReversed = True
+#
+#     # Encoder counts per revolution/rotation.
+#     kEncoderCPR = 1024
+#     kWheelDiameterInches = 6
+#
+#     # Assumes the encoders are directly mounted on the wheel shafts
+#     kEncoderDistancePerPulse = (kWheelDiameterInches * math.pi) / kEncoderCPR
+#
+#
+# class AutoConstants:
+#     kAutoTimeoutSeconds = 12
+#     kAutoShootTimeSeconds = 7
+#
+#
+# class OIConstants:
+kDriverControllerPort = 0
