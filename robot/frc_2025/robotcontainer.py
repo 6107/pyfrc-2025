@@ -5,16 +5,19 @@
 #
 import logging
 import time
+from typing import Optional
 
 import commands2
 import commands2.button
 import commands2.cmd
+import wpilib
 from wpilib import RobotBase, XboxController
 
 from frc_2025 import constants
+from frc_2025.subsystems.swervedrive.constants import OIConstants
 from frc_2025.subsystems.swervedrive.drivesubsystem import Swerve
 
-# pathplanner stuff
+# TODO: pathplanner stuff needed?
 
 logger = logging.getLogger(__name__)
 
@@ -117,19 +120,17 @@ class RobotContainer:
 
         # Configure default command for driving using joystick sticks
         from commands.holonomicdrive import HolonomicDrive
-        self.robotDrive.setDefaultCommand(
-            HolonomicDrive(
-                self.robotDrive,
-                forwardSpeed=lambda: -self.driverController.getRawAxis(XboxController.Axis.kLeftY),
-                leftSpeed=lambda: -self.driverController.getRawAxis(XboxController.Axis.kLeftX),
-                rotationSpeed=lambda: -self.driverController.getRawAxis(XboxController.Axis.kRightX),
-                deadband=OIConstants.kDriveDeadband,
-                fieldRelative=True,
-                rateLimit=True,
-                square=True,
-            )
-        )
+        drive_cmd = HolonomicDrive(self.robotDrive,
+                                   forwardSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftY),
+                                   leftSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftX),
+                                   rotationSpeed=lambda: -self.driver_controller.getRawAxis(
+                                       XboxController.Axis.kRightX),
+                                   deadband=OIConstants.kDriveDeadband,
+                                   fieldRelative=True,
+                                   rateLimit=True,
+                                   square=True)
 
+        self.robotDrive.setDefaultCommand(drive_cmd)
         #
         # # TODO: Move pathfinding init here so ready for autonomous mode
         #
@@ -151,17 +152,18 @@ class RobotContainer:
         """
         logger.info("*** called configureButtonBindings")
 
-        # driveFieldOrientedDirectAngle      = drivebase.driveFieldOriented(self.driveDirectAngle)
-        driveFieldOrientedAnglularVelocity = self.drivebase.driveFieldOriented(self.driveAngularVelocity)
-        driveRobotOrientedAngularVelocity = self.drivebase.driveFieldOriented(self.driveRobotOriented)
-
-        self.drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity)
+        # TODO: Need to reconcile with java cade
+        # # driveFieldOrientedDirectAngle      = drivebase.driveFieldOriented(self.driveDirectAngle)
+        # driveFieldOrientedAnglularVelocity = self.drivebase.driveFieldOriented(self.driveAngularVelocity)
+        # driveRobotOrientedAngularVelocity = self.drivebase.driveFieldOriented(self.driveRobotOriented)
+        #
+        # self.drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity)
 
         self.driver_controller.a().onTrue(commands2.cmd.runOnce(lambda:  self.drivebase.zeroGyro))
         self.driver_controller.y().whileTrue(commands2.cmd.runOnce(lambda: self.drivebase.lock, self.drivebase).repeatedly())
         self.driver_controller.start().onTrue(commands2.cmd.runOnce(lambda: self.drivebase.resetGyroToInitial))
-        self.driver_controller.leftBumper().onTrue(driveRobotOrientedAngularVelocity)
-        self.driver_controller.rightBumper().onTrue(driveFieldOrientedAnglularVelocity)
+        # self.driver_controller.leftBumper().onTrue(driveRobotOrientedAngularVelocity)
+        # self.driver_controller.rightBumper().onTrue(driveFieldOrientedAnglularVelocity)
 
     def configureButtonBindings_Joystick(self) -> None:
         """
@@ -169,42 +171,7 @@ class RobotContainer:
         instantiating a :GenericHID or one of its subclasses (Joystick or XboxController),
         and then passing it to a JoystickButton.
         """
-
-        # example 1: hold the wheels in "swerve X brake" position, when "X" button is pressed
-        brakeCommand = RunCommand(self.robotDrive.setX, self.robotDrive)
-        xButton = self.driverController.button(XboxController.Button.kX)
-        xButton.whileTrue(brakeCommand)  # while "X" button is True (pressed), keep executing the brakeCommand
-
-        # example 2: when "POV-up" button pressed, reset robot field position to "facing North"
-        resetFacingNorthCommand = ResetXY(x=1.0, y=4.0, headingDegrees=0, drivetrain=self.robotDrive)
-        povUpButton = self.driverController.povUp()
-        povUpButton.whileTrue(resetFacingNorthCommand)
-
-        # example 3: when "POV-down" is pressed, reset robot field position to "facing South"
-        resetFacingSouthCommand = ResetXY(x=7.0, y=4.0, headingDegrees=180, drivetrain=self.robotDrive)
-        povDownButton = self.driverController.povDown()
-        povDownButton.whileTrue(resetFacingSouthCommand)
-
-        # example 4: robot drives this trajectory command when "A" button is pressed
-        trajectoryCommand1 = SwerveTrajectory(
-            drivetrain=self.robotDrive,
-            speed=+1.0,
-            waypoints=[
-                (1.0, 7.0, -54),  # start at left feeding station: x=1.0, y=7.0, heading=-54 degrees
-                (1.5, 6.5, 0),  # next waypoint
-                (2.0, 4.5, 0),  # next waypoint
-            ],
-            endpoint=(3.2, 4.0, 0),  # end point at the reef facing North
-            flipIfRed=False,  # if you want the trajectory to flip when team is red, set =True
-            stopAtEnd=True,  # to keep driving onto next command, set =False
-        )
-        aButton = self.driverController.button(XboxController.Button.kA)
-        aButton.whileTrue(trajectoryCommand1)  # while "A" button is pressed, keep running trajectoryCommand1
-
-        # example 5: and when "B" button is pressed, drive the reversed trajectory
-        reversedTrajectoryCommand1 = trajectoryCommand1.reversed()
-        bButton = self.driverController.button(XboxController.Button.kB)
-        bButton.whileTrue(reversedTrajectoryCommand1)  # while "B" button is pressed, keep running this command
+        pass  # TODO: Not supported at this time
 
     def disablePIDSubsystems(self) -> None:
         """Disables all ProfiledPIDSubsystem and PIDSubsystem instances.
@@ -212,7 +179,6 @@ class RobotContainer:
 
         logger.info("*** called disablePIDSubsystems")
         self.set_motor_break = True
-
 
     def configureAutos(self):
         self.chosenAuto = wpilib.SendableChooser()
@@ -255,7 +221,7 @@ class RobotContainer:
 
         return command
 
-    def getTestCommand(self) -> typing.Optional[commands2.Command]:
+    def getTestCommand(self) -> Optional[commands2.Command]:
         """
         :returns: the command to run in test mode ("test dance") to exercise all subsystems
         """
@@ -277,19 +243,19 @@ class RobotContainer:
         # wpilib.SmartDashboard.putData(MoveLowerArmByNetworkTables(container=self, crank=self.lower_crank))
         # lots of putdatas for testing on the dash
         # COMMANDS FOR GUI (ROBOT DEBUGGING) - 20250224 CJH
-        self.led_mode_chooser = wpilib.SendableChooser()
-        [self.led_mode_chooser.addOption(key, value) for key, value in self.led.modes_dict.items()]  # add all the indicators
-        self.led_mode_chooser.onChange(listener=lambda selected_value: commands2.CommandScheduler.getInstance().schedule(
-            SetLEDs(container=self, led=self.led, mode=selected_value)))
-
-        wpilib.SmartDashboard.putData('LED Mode', self.led_mode_chooser)
-
-        self.led_indicator_chooser = wpilib.SendableChooser()
-
-        [self.led_indicator_chooser.addOption(key, value) for key, value in self.led.indicators_dict.items()]  # add all the indicators
-        self.led_indicator_chooser.onChange(listener=lambda selected_value: commands2.CommandScheduler.getInstance().schedule(
-            SetLEDs(container=self, led=self.led, indicator=selected_value)))
-        wpilib.SmartDashboard.putData('LED Indicator', self.led_indicator_chooser)
+        # self.led_mode_chooser = wpilib.SendableChooser()
+        # [self.led_mode_chooser.addOption(key, value) for key, value in self.led.modes_dict.items()]  # add all the indicators
+        # self.led_mode_chooser.onChange(listener=lambda selected_value: commands2.CommandScheduler.getInstance().schedule(
+        #     SetLEDs(container=self, led=self.led, mode=selected_value)))
+        #
+        # wpilib.SmartDashboard.putData('LED Mode', self.led_mode_chooser)
+        #
+        # self.led_indicator_chooser = wpilib.SendableChooser()
+        #
+        # [self.led_indicator_chooser.addOption(key, value) for key, value in self.led.indicators_dict.items()]  # add all the indicators
+        # self.led_indicator_chooser.onChange(listener=lambda selected_value: commands2.CommandScheduler.getInstance().schedule(
+        #     SetLEDs(container=self, led=self.led, indicator=selected_value)))
+        # wpilib.SmartDashboard.putData('LED Indicator', self.led_indicator_chooser)
 
         # # Arshan's 67 scoring trajectory tests
         # wpilib.SmartDashboard.putData('67 score trajectory L2', FollowTrajectory(container=self, current_trajectory=CustomTrajectory(trajectory.score_waypoint_dict['l2'], list(trajectory.score_waypoint_dict['l2'].keys())[-1]), wait_to_finish=True, ignore_wrist=True))

@@ -107,7 +107,7 @@ class MyRobot(TimedCommandRobot):
         self.disabledTimer = wpilib.Timer()
 
         # If this is a simulation, we need to silence joystick warnings
-        if self.simulation:
+        if RobotBase.isSimulation():
             logger.warning("Simulation detected. Silencing annoying JoyStick warnings")
             DriverStation.silenceJoystickConnectionWarning(True)
 
@@ -118,7 +118,7 @@ class MyRobot(TimedCommandRobot):
         This function is called each time a new packet is received from the driver
         station. Default period is 20 mS.
         """
-        logger.info("*** called robotPeriodic")
+        logger.debug("called robotPeriodic")
         self._counter += 1
 
         # Runs the Scheduler.  This is responsible for polling buttons, adding newly-scheduled
@@ -147,7 +147,7 @@ class MyRobot(TimedCommandRobot):
         new packet is received from the driver station and the robot is in disabled
         mode.
         """
-        logger.info("*** called disabledPeriodic")
+        logger.debug("called disabledPeriodic")
 
         if self.disabledTimer.hasElapsed(constants.WHEEL_LOCK_TIME):
             self.container.setMotorBrake(False)

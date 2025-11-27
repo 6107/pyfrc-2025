@@ -22,7 +22,7 @@
 k_start_x = 0
 k_start_y = 0
 
-k_use_vision_odometry = True
+k_use_vision_odometry = False
 
 k_swerve_debugging_messages = True
 # multiple attempts at tags this year - TODO - use l/r/ or up/down tilted cameras again, gives better data

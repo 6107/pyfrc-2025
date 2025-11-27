@@ -571,14 +571,12 @@ class Swerve(Subsystem):
 
         return Rotation2d.fromDegrees(self._lastGyroAngle * DriveConstants.kGyroReversed)
 
-
     def getTurnRate(self) -> float:
         """Returns the turn rate of the robot (in radians per second)
 
         :returns: The turn rate of the robot, in radians per second
         """
         return self.gyro.getRate() * DriveConstants.kGyroReversed
-
 
     def getTurnRateDegreesPerSec(self) -> float:
         """Returns the turn rate of the robot (in degrees per second)
@@ -708,6 +706,20 @@ class Swerve(Subsystem):
         """Zeroes the heading of the robot."""
         self.gyro.reset()
 
+    zeroGyro = zeroHeading  # Alias
+
+    def lock(self):
+        print("What does: swerveDrive.lockPose() do")
+
+    def resetGyroToInitial(self):
+        print(""" What does this do
+        {
+            zeroGyro();
+        swerveDrive.setGyroOffset(new
+        Rotation3d());
+        }
+        """)
+
     def getTurnRate(self) -> float:
         """Returns the turn rate of the robot.
         :returns: The turn rate of the robot, in degrees per second
@@ -817,7 +829,7 @@ class Swerve(Subsystem):
                                         ts)  # this one we actually do every time TODO - see if this is done by wpilib and use it instead
 
         # use this if we have a phononvision camera - which we don't as of 20250316
-        if self.use_photoncam and wpilib.RobotBase.isReal():  # sim complains if you don't set up a sim photoncam
+        if self.vision_supported and RobotBase.isReal() and self.use_photoncam:  # sim complains if you don't set up a sim photoncam
             has_photontag = self.photoncam_target_subscriber.get()
             # has_photontag = self.photoncam_target_subscriber.get()
             # how do we get the time offset and standard deviation?
@@ -873,7 +885,7 @@ class Swerve(Subsystem):
                 else:
                     wpilib.SmartDashboard.putNumber('photoncam_ambiguity', 997)
 
-        if self.use_quest and self.quest_has_synched and self.counter % 5 == 0:
+        if self.vision_supported and self.use_quest and self.quest_has_synched and self.counter % 5 == 0:
             # print('quest pose synced')
             quest_accepted = SmartDashboard.getBoolean("QUEST_POSE_ACCEPTED", False)
             quest_pose = self.questnav.get_pose().transformBy(self.quest_to_robot)
@@ -882,7 +894,7 @@ class Swerve(Subsystem):
                 self.pose_estimator.addVisionMeasurement(quest_pose, wpilib.Timer.getFPGATimestamp(),
                                                          constants.DrivetrainConstants.k_pose_stdevs_disabled)
 
-        if self.use_CJH_apriltags:  # loop through all of our subscribers above
+        if self.vision_supported and self.use_CJH_apriltags:  # loop through all of our subscribers above
             for count_subscriber, pose_subscriber in zip(self.count_subscribers, self.pose_subscribers):
                 # print(f"count subscriber says it has {count_subscriber.get()} tags")
                 if count_subscriber.get() > 0:  # use this camera's tag
@@ -911,7 +923,7 @@ class Swerve(Subsystem):
                         self.pose_estimator.addVisionMeasurement(tag_pose, tag_data[0], sdevs)
 
         # Update the odometry in the periodic block -
-        if wpilib.RobotBase.isReal():
+        if self.vision_supported and RobotBase.isReal():
             # self.odometry.update(Rotation2d.fromDegrees(self.get_angle()), self.get_module_positions(),)
             self.pose_estimator.updateWithTime(wpilib.Timer.getFPGATimestamp(),
                                                Rotation2d.fromDegrees(self.get_gyro_angle()),
@@ -921,7 +933,7 @@ class Swerve(Subsystem):
         # TODO: if we want to be cool and have spare time, we could use SparkBaseSim with FlywheelSim to do
         # actual physics simulation on the swerve modules instead of assuming perfect behavior
 
-        if self.counter % 10 == 0:
+        if self.vision_supported and self.counter % 10 == 0:
             pose = self.get_pose()  # self.odometry.getPose()
             if True:  # wpilib.RobotBase.isReal():  # update the NT with odometry for the dashboard - sim will do its own
                 wpilib.SmartDashboard.putNumberArray('drive_pose', [pose.X(), pose.Y(), pose.rotation().degrees()])
@@ -964,9 +976,13 @@ class Swerve(Subsystem):
                 # wpilib.SmartDashboard.putNumberArray(f'_analog_radians', absolutes)
 
         # Import pose from QuestNav.
-        self.quest_periodic()
+        if self.vision_supported:
+            self.quest_periodic()
 
     def quest_periodic(self) -> None:
+        if not self.vision_supported:
+            return
+
         self.questnav.command_periodic()
         quest_pose = self.questnav.get_pose().transformBy(self.quest_to_robot)
         self.quest_field.setRobotPose(quest_pose)

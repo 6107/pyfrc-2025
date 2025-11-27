@@ -51,8 +51,9 @@ class MAXSwerveModule:
         self.turningSparkMax = motorControllerType(turningCANId, SparkLowLevel.MotorType.kBrushless)
 
         if RobotBase.isSimulation():  # check in sim to see if we are reacting to inputs
-            self.dummy_motor_driving = wpilib.PWMSparkFlex(drivingCANId - 16)
-            self.dummy_motor_turning = wpilib.PWMSparkFlex(turningCANId - 16)
+            # TODO: Review team 2429 code and others to see how they setup SIM
+            self.dummy_motor_driving = wpilib.PWMSparkFlex(drivingCANId)
+            self.dummy_motor_turning = wpilib.PWMSparkFlex(turningCANId)
 
         # Factory reset, so we get the SPARKS MAX to a known state before configuring
         # them. This is useful in case a SPARK MAX is swapped out.
