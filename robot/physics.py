@@ -29,23 +29,17 @@
 # Examples can be found at https://github.com/robotpy/examples
 
 import logging
+import math
 
-from wpilib import Encoder, Field2d, SmartDashboard
-from wpilib.simulation import EncoderSim, DCMotorSim, DifferentialDrivetrainSim
-from wpimath.geometry import Pose2d, Rotation2d
-from wpimath.kinematics import ChassisSpeeds, DifferentialDriveKinematics
-from wpimath.system.plant import DCMotor
-from wpimath.units import metersToFeet
-
-import hal.simulation
-
-from pyfrc.physics import drivetrains
 from pyfrc.physics.core import PhysicsInterface
-from pyfrc.physics.units import units
+from wpilib import Field2d, SmartDashboard, Timer
+from wpimath.geometry import Pose2d, Rotation2d, Translation2d
 
+from lib_6107.subsystems.swerve_constants import DriveConstants
 from robot import MyRobot, RobotContainer
-from frc_2026.subsystems.xrp_differential_drive import XrpDifferentialDriveSubsystem
-from lib_6107.constants import XrpConstants
+
+# from frc_2025.subsystems.xrp_differential_drive import XrpDifferentialDriveSubsystem
+# from lib_6107.constants import XrpConstants
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +58,15 @@ class PhysicsEngine:
         """
         logger.info("PhysicsEngine: entry")
 
+        # TODO: Cleanup and rconcile with below
         self._physics_controller = physics_controller
         self._robot: MyRobot = robot
         self._container: RobotContainer = robot.container
+
+        # TODO: Use below
+        self.drivetrain = robot.container.robotDrive
+        self.robot = robot
+        self.t = 0
         # self._drive: XrpDifferentialDriveSubsystem = robot.container.drive
         # self._controller = robot.container.controller
         #
@@ -114,7 +114,6 @@ class PhysicsEngine:
         # Set up field
         self._field = Field2d()
         SmartDashboard.putData("Field", self._field)
-
 
     def update_sim(self, now: float, tm_diff: float) -> None:
         """
@@ -187,3 +186,31 @@ class PhysicsEngine:
         # # -> FRC gyros are positive clockwise, but the returned pose is positive
         # #    counter-clockwise
         # #self.gyro.setAngle(-pose.rotation().degrees())
+
+        past = self.t
+        self.t = Timer.getFPGATimestamp()
+        if past == 0:
+            return  # it was first time
+
+        dt = self.t - past
+        if self.robot.isEnabled():
+            drivetrain = self.drivetrain
+
+            states = (
+                drivetrain.frontLeft.desiredState,
+                drivetrain.frontRight.desiredState,
+                drivetrain.rearLeft.desiredState,
+                drivetrain.rearRight.desiredState,
+            )
+            speeds = DriveConstants.kDriveKinematics.toChassisSpeeds(states)
+
+            dx = speeds.vx * dt
+            dy = speeds.vy * dt
+
+            heading = drivetrain.getHeading()
+            trans = Translation2d(dx, dy).rotateBy(heading)
+            rot = (speeds.omega * 180 / math.pi) * dt
+
+            g = drivetrain.gyro
+            g.setAngleAdjustment(g.getAngleAdjustment() + rot * DriveConstants.kGyroReversed)
+            drivetrain.adjustOdometry(trans, Rotation2d())

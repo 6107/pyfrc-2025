@@ -3,24 +3,18 @@
 # Open Source Software; you can modify and/or share it under the terms of
 # the WPILib BSD license file in the root directory of this project.
 #
-import os
 import logging
+import time
 
 import commands2
 import commands2.button
 import commands2.cmd
-
-from copy import deepcopy
-
-# pathplanner stuff
-from pathplannerlib.pathfinders import LocalADStar
-from pathplannerlib.pathfinding import Pathfinding
-from pathplannerlib.auto import AutoBuilder, NamedCommands
-
-from wpilib import DriverStation, RobotBase, getDeployDirectory, SmartDashboard
+from wpilib import RobotBase, XboxController
 
 from frc_2025 import constants
-from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem
+from frc_2025.subsystems.swervedrive.drivesubsystem import Swerve
+
+# pathplanner stuff
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +26,10 @@ class RobotContainer:
     subsystems, commands, and button mappings) should be declared here.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, robot: RobotBase) -> None:
         # The robot's subsystems
         logger.info("*** called __init__")
         self.start_time = time.time()
-
-        self.robotDrive = self.drivebase = self.robot_drive = DriveSubsystem()  # TODO: Get rid of driveBase
 
         self.simulation = RobotBase.isSimulation()
 
@@ -48,7 +40,9 @@ class RobotContainer:
         # filePath = os.path.join(getDeployDirectory(), "swerve/neo")
         # self.drivebase = SwerveSubsystem(filePath)                    # TODO: Get rid of driveBase
         # self.drivebase = DriveSubsystem()
+        self.robotDrive = self.drivebase = self.robot_drive = Swerve()  # TODO: Get rid of driveBase
 
+        # TODO: Probably can drop all the code below (not applicable since not using the Java library for swerve drive
         # # Converts driver input into a field-relative ChassisSpeeds that is controlled by angular velocity.
         # self.driveAngularVelocity = None
         #
@@ -111,11 +105,12 @@ class RobotContainer:
         # #                                                                                                        2))
         # #                                                                        .headingWhile(true);
         # #
-
-
         # Configure the button bindings and autos
-        self.configureButtonBindings_Joystick
-        #self.configureButtonBindings_xbox()
+        if isinstance(self.driver_controller, commands2.button.CommandXboxController):
+            self.configureButtonBindings_xbox()
+        else:
+            self.configureButtonBindings_Joystick()
+
         self.configureAutos()
 
         self.initialize_dashboard()
@@ -135,27 +130,10 @@ class RobotContainer:
             )
         )
 
-        if commands2.TimedCommandRobot.isSimulation():
-            self.robotDrive.simPhysics = BadSimPhysics(self.robotDrive, robot)
         #
-        # # TODO: Move pathfinding init here so ready for autonmous mode
+        # # TODO: Move pathfinding init here so ready for autonomous mode
         #
-        # DriverStation.silenceJoystickConnectionWarning(True)
 
-        # TODO: Following was from the robotpy init command and we may not need it
-        # # Set the default drive command
-        # # Set the default drive command to split-stick arcade drive
-        # self.drivebase.setDefaultCommand(
-        #     commands2.cmd.run(
-        #         # A split-stick arcade command, with forward/backward controlled by the left
-        #         # hand, and turning controlled by the right.
-        #         lambda: self.drivebase.arcadeDrive(
-        #             -self.driver_controller.getLeftY(),
-        #             -self.driver_controller.getRightX(),
-        #         ),
-        #         self.drivebase,
-        #     )
-        # )
     def set_start_time(self) -> None:  # call in teleopInit and autonomousInit in the robot
         self.start_time = time.time()
 
@@ -172,9 +150,10 @@ class RobotContainer:
         and then passing it to a JoystickButton.
         """
         logger.info("*** called configureButtonBindings")
+
         # driveFieldOrientedDirectAngle      = drivebase.driveFieldOriented(self.driveDirectAngle)
-        driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(self.driveAngularVelocity)
-        driveRobotOrientedAngularVelocity  = drivebase.driveFieldOriented(self.driveRobotOriented)
+        driveFieldOrientedAnglularVelocity = self.drivebase.driveFieldOriented(self.driveAngularVelocity)
+        driveRobotOrientedAngularVelocity = self.drivebase.driveFieldOriented(self.driveRobotOriented)
 
         self.drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity)
 

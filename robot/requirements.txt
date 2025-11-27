@@ -22,6 +22,7 @@ robotpy-pathplannerlib
 robotpy-navx
 robotpy-rev
 phoenix6
+photonlibpy
 certifi
 
 

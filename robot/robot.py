@@ -16,21 +16,21 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 
-import sys
+import logging
 import math
+import sys
 from typing import Optional
 
+import wpilib
 from commands2 import TimedCommandRobot, CommandScheduler
 from commands2.command import Command
-
-from wpilib import Timer, XboxController
 from phoenix6.hardware.talon_fx import TalonFX
 from rev import SparkFlex, SparkMax, SparkLowLevel, SparkClosedLoopController
+from wpilib import Timer, XboxController, RobotBase, DriverStation
 
 from frc_2025 import constants
-
 from frc_2025.robotcontainer import RobotContainer
-from util import Telemetry
+# from util.telemetry import Telemetry
 from version import VERSION
 
 # Setup Logging
@@ -75,7 +75,6 @@ class MyRobot(TimedCommandRobot):
 
         self.controller_shooter: XboxController = XboxController(1) # On USB-port 1
 
-
         self.disabledTimer: Timer = Timer()
         self.autonomousCommand: Optional[Command] = None
 
@@ -104,7 +103,7 @@ class MyRobot(TimedCommandRobot):
         
         # Instantiate our RobotContainer.  This will perform all our button bindings, and put our
         # autonomous chooser on the dashboard.
-        self._container = RobotContainer()
+        self._container = RobotContainer(self)
         self.disabledTimer = wpilib.Timer()
 
         # If this is a simulation, we need to silence joystick warnings
@@ -243,18 +242,18 @@ class MyRobot(TimedCommandRobot):
         if intake_coral:
             self.intake_left.set(constants.D_CORAL_INTAKE_SPEED)
             self.intake_right.set(-constants.D_CORAL_INTAKE_SPEED)
-            self.holding_alge = false
+            self.holding_alge = False
 
         intake_alge = self.controller_shooter.getLeftTriggerAxis() >= 0.35
         if intake_alge:
             self.intake_left.set(constants.D_ALGE_INTAKE_SPEED)
             self.intake_right.set(-constants.D_ALGE_INTAKE_SPEED)
-            self.holding_alge = true
+            self.holding_alge = True
 
         if b_shoot:
             self.intake_left.set(constants.D_SHOOT_SPEED)
             self.intake_right.set(-constants.D_SHOOT_SPEED)
-            self.holding_alge = Ralse
+            self.holding_alge = False
 
         # Elevator control logic
         pos_l0 = self.controller_shooter.getRightBumperButtonPressed()

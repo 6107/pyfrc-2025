@@ -8,11 +8,11 @@
 #
 from typing import Optional
 
-import commands2
+from commands2 import Command
 from wpilib import SmartDashboard
 
 
-class CommandTemplate(commands2.Command):  # change the name for your command
+class CommandTemplate(Command):  # change the name for your command
     """
     TODO: Describe this class here
     """
