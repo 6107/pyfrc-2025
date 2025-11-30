@@ -28,6 +28,7 @@ class AutoBalanceCommand(Command):
     From Auto Balance command using a simple PID controller. Created by Team 3512 (java)
     """
 
+    # TODO: This is not called anywhere in the Java application. Will not implement it here either...
     def __init__(self, container, indent: Optional[int] = 0):
         self._swerve_subsystem
 #

@@ -19,6 +19,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# TODO: This is not called anywhere in the Java application. Will not implement it here either...
 # /**
 #  * An example command that uses an example subsystem.
 #  */
