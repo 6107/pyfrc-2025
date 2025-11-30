@@ -87,6 +87,11 @@ class MAXSwerveModule:
         self.desiredState.angle = Rotation2d(self.turningEncoder.getPosition())
         self.drivingEncoder.setPosition(0)
 
+    def get_turn_encoder(self):
+        # how we invert the absolute encoder if necessary (which it probably isn't in the standard mk4i config)
+        analog_reverse_multiplier = -1 if sdc.k_reverse_analog_encoders else 1
+        return analog_reverse_multiplier * self.absolute_encoder.get()
+
     def getState(self) -> SwerveModuleState:
         """Returns the current state of the module.
 
@@ -106,6 +111,9 @@ class MAXSwerveModule:
         # relative to the chassis.
         return SwerveModulePosition(self.drivingEncoder.getPosition(),
                                     Rotation2d(self.turningEncoder.getPosition() - self.chassisAngularOffset))
+
+    def getDesiredState(self):
+        return self.desiredState
 
     def setDesiredState(self, desiredState: SwerveModuleState) -> None:
         """Sets the desired state for the module.

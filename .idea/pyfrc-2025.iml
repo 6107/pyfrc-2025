@@ -14,5 +14,6 @@
     <orderEntry type="module" module-name="pyreefscape" />
     <orderEntry type="module" module-name="2025Reefscape" />
     <orderEntry type="module" module-name="2025-Season" />
+    <orderEntry type="module" module-name="2025-robot-code" />
   </component>
 </module>

@@ -19,4 +19,7 @@
 #                 optional and should a period plus an incrementing number
 #                 starting at 1
 #
-VERSION = "2025.11.15"
+#  This can be used to track code back to the original github commit. Remember
+#  to update it periodically as you make changes and check them in.
+#
+VERSION = "2025.11.28"

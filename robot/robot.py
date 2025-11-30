@@ -53,8 +53,8 @@ class MyRobot(TimedCommandRobot):
         # Initialize our base class, choosing the default scheduler period
         super().__init__()
 
-        logger.info("*** called __init__")
-        self._counter = 0
+        logger.debug("*** called MyRobot __init__")
+        self._counter = 0  # Updated on each periodic call. Can be used to logging/smartdashboard updates
 
         self._container: Optional[RobotContainer] = None
         self.autonomousCommand: Optional[Command] = None
@@ -84,6 +84,10 @@ class MyRobot(TimedCommandRobot):
     def container(self) -> RobotContainer:
         return self._container
 
+    @property
+    def counter(self) -> int:
+        return self._counter
+
     # @tracer.start_as_current_span("robotInit")
     def robotInit(self) -> None:
         """
@@ -92,6 +96,10 @@ class MyRobot(TimedCommandRobot):
         """
         if RobotBase.isSimulation():
             logger.setLevel(logging.INFO)
+
+            # If this is a simulation, we need to silence joystick warnings
+            logger.warning("Simulation detected. Silencing annoying JoyStick warnings")
+            DriverStation.silenceJoystickConnectionWarning(True)
         else:
             logger.setLevel(logging.ERROR)
 
@@ -106,11 +114,6 @@ class MyRobot(TimedCommandRobot):
         self._container = RobotContainer(self)
         self.disabledTimer = wpilib.Timer()
 
-        # If this is a simulation, we need to silence joystick warnings
-        if RobotBase.isSimulation():
-            logger.warning("Simulation detected. Silencing annoying JoyStick warnings")
-            DriverStation.silenceJoystickConnectionWarning(True)
-
     def robotPeriodic(self) -> None:
         """
         Periodic code for all modes should go here.
@@ -118,14 +121,18 @@ class MyRobot(TimedCommandRobot):
         This function is called each time a new packet is received from the driver
         station. Default period is 20 mS.
         """
-        logger.debug("called robotPeriodic")
+        logger.debug(f"called robotPeriodic: enabled: {self.isEnabled()}")
+
         self._counter += 1
+
+        if self.isEnabled():
+            self.container.robotDrive.periodic()
 
         # Runs the Scheduler.  This is responsible for polling buttons, adding newly-scheduled
         # commands, running already-scheduled commands, removing finished or interrupted commands,
         # and running subsystem periodic() methods.  This must be called from the robot's periodic
         # block in order for anything in the Command-based framework to work.
-        CommandScheduler.getInstance().run()
+        # CommandScheduler.getInstance().run()
 
     def disabledInit(self) -> None:
         """
@@ -134,7 +141,7 @@ class MyRobot(TimedCommandRobot):
         Users should override this method for initialization code which will be
         called each time the robot enters disabled mode.
         """
-        logger.info("*** called disabledInit")
+        logger.debug("called disabledInit")
         self.container.disablePIDSubsystems()
         self.disabledTimer.reset()
         self.disabledTimer.start()
@@ -177,7 +184,7 @@ class MyRobot(TimedCommandRobot):
         logger.info("*** called autonomousInit")
         self.container.setMotorBrake(True)
 
-        self.autonomousCommand = self.container.getAutonomousCommand()
+        self.autonomousCommand = None  # TODO:  self.container.getAutonomousCommand()
 
         if self.autonomousCommand:
             self.autonomousCommand.schedule()
@@ -230,7 +237,7 @@ class MyRobot(TimedCommandRobot):
         mode.
         """
         # Intake wheel control logic
-        logger.info("*** called teleopPeriodic")
+        logger.debug("*** called teleopPeriodic")
 
         # TODO: As we implement and understand the following, document what we are
         #       doing here.
@@ -250,6 +257,7 @@ class MyRobot(TimedCommandRobot):
             self.intake_right.set(-constants.D_ALGE_INTAKE_SPEED)
             self.holding_alge = True
 
+        b_shoot = self.controller_shooter.getRightTriggerAxis() >= 0.35
         if b_shoot:
             self.intake_left.set(constants.D_SHOOT_SPEED)
             self.intake_right.set(-constants.D_SHOOT_SPEED)
@@ -262,45 +270,46 @@ class MyRobot(TimedCommandRobot):
         pos_l3 = self.controller_shooter.getYButtonPressed()
 
         if pos_l0:
-            self.elevator.setControl(EL_POS_L0)
+            self.elevator.set_control(constants.EL_POS_L0)
 
         if pos_l1:
-            self.elevator.setControl(EL_POS_L1)
+            self.elevator.set_control(constants.EL_POS_L1)
 
         if pos_l2:
-            self.elevator.setControl(EL_POS_L2)
+            self.elevator.set_control(constants.EL_POS_L2)
 
         if pos_l3:
-            self.elevator.setControl(EL_POS_L3)
+            self.elevator.set_control(constants.EL_POS_L3)
 
         pos_intake = self.controller_shooter.getBButtonPressed()
         if pos_intake:
-            self.elevator.setControl(EL_POS_IN)
+            self.elevator.set_control(constants.EL_POS_IN)
 
-        intake_extend  = math.abs(controller_shooter.getLeftY())
+        intake_extend = math.fabs(self.controller_shooter.getLeftY())
 
-        # Intake extender logic
-        if intake_extend >= Constants.DEADBAND:
-            self.intake_extend.setReference(intake_extend * constants.I_INTAKE_EXTEND_MAX,
-                                            ControlType.kPosition)
-        else:
-            self.intake_extend.setReference(0, ControlType.kPosition)
-
-        shoot     = self.controller_shooter.getRightTriggerAxis() >= 0.35
-        alge_grab = self.controller_shooter.getRightStickButton()
-
-        # Alge intake control logic
-        if alge_grab:
-            m_alge_roller.set(constants.D_ALGE_GRABBER_GRAB)
-            mc_alge_rotation.setReference(constants.I_ALGE_ROTATION_OUT, ControlType.kPosition)
-
-        elif shoot:
-            m_alge_roller.set(constants.D_ALGE_GRABBER_SHOOT)
-            mc_alge_rotation.setReference(constants.I_ALGE_ROTATION_IN, ControlType.kPosition)
-
-        else:
-            m_alge_roller.set(constants.D_ALGE_GRABBER_HOLD)
-            mc_alge_rotation.setReference(constants.I_ALGE_ROTATION_IN, ControlType.kPosition)
+        # TODO: Support additional subsystems
+        # # Intake extender logic
+        # if intake_extend >= constants.DEADBAND:
+        #     self.intake_extend.setReference(intake_extend * constants.I_INTAKE_EXTEND_MAX,
+        #                                     SparkBase.ControlType.kPosition)
+        # else:
+        #     self.intake_extend.setReference(0, SparkBase.ControlType.kPosition)
+        #
+        # shoot     = self.controller_shooter.getRightTriggerAxis() >= 0.35
+        # alge_grab = self.controller_shooter.getRightStickButton()
+        #
+        # # Alge intake control logic
+        # if alge_grab:
+        #     self.alge_roller.set(constants.D_ALGE_GRABBER_GRAB)
+        #     self.alge_rotation.setReference(constants.I_ALGE_ROTATION_OUT, SparkBase.ControlType.kPosition)
+        #
+        # elif shoot:
+        #     self.alge_roller.set(constants.D_ALGE_GRABBER_SHOOT)
+        #     self.alge_rotation.setReference(constants.I_ALGE_ROTATION_IN, SparkBase.ControlType.kPosition)
+        #
+        # else:
+        #     self.alge_roller.set(constants.D_ALGE_GRABBER_HOLD)
+        #     self.alge_rotation.setReference(constants.I_ALGE_ROTATION_IN, SparkBase.ControlType.kPosition)
 
     def teleopExit(self) -> None:
         """

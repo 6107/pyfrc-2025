@@ -31,15 +31,15 @@
 import logging
 import math
 
+import wpilib
+import wpilib.simulation as simlib  # 2021 name for the simulation library
 from pyfrc.physics.core import PhysicsInterface
-from wpilib import Field2d, SmartDashboard, Timer
-from wpimath.geometry import Pose2d, Rotation2d, Translation2d
+from wpilib import Field2d, SmartDashboard
+from wpimath.geometry import Pose2d, Rotation2d
+from wpimath.kinematics._kinematics import SwerveDrive4Kinematics, SwerveModulePosition
 
 from lib_6107.subsystems.swerve_constants import DriveConstants
-from robot import MyRobot, RobotContainer
-
-# from frc_2025.subsystems.xrp_differential_drive import XrpDifferentialDriveSubsystem
-# from lib_6107.constants import XrpConstants
+from robot import MyRobot
 
 logger = logging.getLogger(__name__)
 
@@ -58,58 +58,14 @@ class PhysicsEngine:
         """
         logger.info("PhysicsEngine: entry")
 
-        # TODO: Cleanup and rconcile with below
-        self._physics_controller = physics_controller
+        self._physics_controller = self._physics_controller = physics_controller
         self._robot: MyRobot = robot
-        self._container: RobotContainer = robot.container
+        self._drivetrain = robot.container.robotDrive
 
-        # TODO: Use below
-        self.drivetrain = robot.container.robotDrive
-        self.robot = robot
-        self.t = 0
-        # self._drive: XrpDifferentialDriveSubsystem = robot.container.drive
-        # self._controller = robot.container.controller
-        #
-        # # NOTE: Depending on the library, the units may need to either be standard python types,
-        # #       but in a few, they require Quantity objects created by the 'pint' moduled. It is
-        # #       really a bit ad-hoc and some of the libraries want wpimath.units.* objectss, but'
-        # #       those are alias for the python types and the libraries do not work.
-        # def xrp_dc_motor() -> DCMotor:
-        #     return DCMotor(XrpConstants.Motor.Voltage,      # Nominal voltage - Voltage at which the motor constants were measured.
-        #                    XrpConstants.Motor.StallTorque,  # Stall torque in N*m (approximation) - Torque when stalled.
-        #                    XrpConstants.Motor.StallCurrent, # Stall current - Current draw when stalled.
-        #                    XrpConstants.Motor.FreeCurrent,  # Free Current - Current draw under no load.
-        #                    XrpConstants.Motor.FreeSpeed,    # Angular velocity under no load.
-        #                    XrpConstants.Motor.MotorCount)   # Number of motors in a gearbox.
-        #
-        # # Initialize a two-motor drivetrain model
-        # wheelbase = metersToFeet(XrpConstants.Physical.TrackWidth) * units.feet
-        # speed = (XrpConstants.Motor.FreeSpeed * units.meters / units.seconds).to(units.fps)
-        #
-        # self._drivetrain = drivetrains.TwoMotorDrivetrain(x_wheelbase=wheelbase,
-        #                                                   speed=speed,
-        #                                                   deadzone=drivetrains.linear_deadzone(0.1))
-        # # Create simulated motors
-        # self._left_motor: DCMotor = xrp_dc_motor()
-        # self._right_motor: DCMotor = xrp_dc_motor()
-        #
-        # # Create encoder simulators (12 CPR on motor output shaft, so 585 counts per wheel revolution)
-        # # TODO: Investigate -> Encoders are accessed via SimDeviceSim in RobotPy for XRP
-        # self._left_encoder_sim = EncoderSim(Encoder(XrpConstants.EncoderChannel.LeftChannel_A,
-        #                                             XrpConstants.EncoderChannel.LeftChannel_B))
-        # # self._left_encoder_distance = self._left_encoder_sim.getDistance()
-        # # self._left_encoder_rate = self._left_encoder_sim.getRate()
-        #
-        # self._right_encoder_sim = EncoderSim(Encoder(XrpConstants.EncoderChannel.RightChannel_A,
-        #                                             XrpConstants.EncoderChannel.RightChannel_B))
-        # # self._right_encoder_distance = self._right_encoder_sim.getDistance()
-        # # self._right_encoder_rate = self._right_encoder_sim.getRate()
-        # #
-        # # # Track motor inputs (which are set in the main robot code)
-        # # self._left_motor_input = 0.0
-        # # self._right_motor_input = 0.0
+        # Initialize our simulated subsystems
+        self._initialize_swerve()
 
-        self._physics_controller.field.setRobotPose(Pose2d(0.5, 2.0, Rotation2d(0)))
+        # TODO: Bunch of work needed here?  Perhaps setting our pose as least
 
         # Set up field
         self._field = Field2d()
@@ -124,93 +80,109 @@ class PhysicsEngine:
         :param tm_diff: The amount of time that has passed since the last
                         time that this function was called
         """
-        # controller_forward_speed = self._controller.getY()
-        # controller_rotation_speed = self._controller.getX()
-        #
-        # log_it =  controller_forward_speed or controller_rotation_speed
-        # if log_it:
-        #     logger.info(f"motor: left: {controller_forward_speed}, right: {controller_rotation_speed}")
-        #
-        # left_encoder_distance = self._left_encoder_sim.getDistance()
-        # left_encoder_rate = self._left_encoder_sim.getRate()
-        #
-        # right_encoder_distance = self._right_encoder_sim.getDistance()
-        # right_encoder_rate = self._right_encoder_sim.getRate()
-        #
-        # # Gyro TODO: Future
-        # #self.gyro = wpilib.simulation.AnalogGyroSim(robot.gyro)
-        # if log_it:
-        #     logger.info(f"encoder: left: {left_encoder_distance}/{left_encoder_rate}, "
-        #                 f"right: {right_encoder_distance}/{right_encoder_rate}")
-        # # Pressing the 'w' up, results in the left & right rate of change increasing a small amount
-        # # that does not increase like speed. Change is .00556, but the distance for left
-        # # and right stays at zero.
-        #
-        # left, right = self._drive.left_motor.get(), self._drive.right_motor.get()
-        # if left or right:
-        #     logger.info(f"XPRMotor: Speed, Left: {left}, right: {right}")
-        #
-        # #chassis_speed: ChassisSpeeds = self._drivetrain.calculate(controller_forward_speed, controller_rotation_speed)
-        # chassis_speed: ChassisSpeeds = self._drivetrain.calculate(left, right)
-        #
-        # wheel_speeds = DifferentialDriveKinematics(XrpConstants.Physical.TrackWidth).toWheelSpeeds(chassis_speed)
-        # if log_it:
-        #     logger.info(f"chassis_speed: {chassis_speed.vx}/{chassis_speed.vy}/{chassis_speed.omega}")
-        #     logger.info(f"chassis_speed: {chassis_speed.vx_fps}/{chassis_speed.vy_fps}/{chassis_speed.omega}")
-        #     logger.info(f"wheel_speeds: {wheel_speeds}")
-        # # Pressing the 'w' up, and holding does not change wheel or chassis speed
-        #
-        # self._physics_controller.drive(chassis_speed, tm_diff)
-        #
-        # # optional: compute encoder
-        # l_encoder = self._drivetrain.wheelSpeeds.left * tm_diff
-        # r_encoder = self._drivetrain.wheelSpeeds.left * tm_diff
-        #
-        # if log_it:
-        #     logger.info(f"encoder: left: {l_encoder}, right: {r_encoder}")
-        #
-        # pose = self._field.getRobotPose()
-        # x = min(max(0, pose.X()), 17.5)
-        # y = min(max(0, pose.Y()), 8)
-        # rotation = pose.rotation()
-        # pose = self._field.setRobotPose(Pose2d(x, y,rotation))
-        # # #
-        # # transform = self._drivetrain.calculate(controller_forward_speed, controller_rotation_speed, tm_diff)
-        # # self._physics_controller.move_robot(transform)
-        #
-        # # optional: compute encoder
-        # # l_encoder = self.drivetrain.l_position * ENCODER_TICKS_PER_FT
-        # # r_encoder = self.drivetrain.r_position * ENCODER_TICKS_PER_FT
-        #
-        # # FUTURE Update the gyro simulation
-        # # -> FRC gyros are positive clockwise, but the returned pose is positive
-        # #    counter-clockwise
-        # #self.gyro.setAngle(-pose.rotation().degrees())
+        if self._robot.isEnabled():
+            logger.debug(f"PhysicsEngine: updating sim: Enabled: {self._robot.isEnabled()}")
 
-        past = self.t
-        self.t = Timer.getFPGATimestamp()
-        if past == 0:
-            return  # it was first time
+            # TODO: Add update sim methods for other subsystems (return amps used)
+            self._update_swerve(tm_diff)  # TODO: Return amps used
+            # TODO: update battery with amps consumed
 
-        dt = self.t - past
-        if self.robot.isEnabled():
-            drivetrain = self.drivetrain
+    def _initialize_swerve(self):
+        self.kinematics: SwerveDrive4Kinematics = DriveConstants.kDriveKinematics  # our swerve drive kinematics
 
-            states = (
-                drivetrain.frontLeft.desiredState,
-                drivetrain.frontRight.desiredState,
-                drivetrain.rearLeft.desiredState,
-                drivetrain.rearRight.desiredState,
-            )
-            speeds = DriveConstants.kDriveKinematics.toChassisSpeeds(states)
+        # set up LEDs - apparently not necessary - glass gui grabs the default one and you can show it
+        # self.ledsim = simlib.AddressableLEDSim()
 
-            dx = speeds.vx * dt
-            dy = speeds.vy * dt
+        # NavX (SPI interface)
+        self._navx = simlib.SimDeviceSim("navX-Sensor[4]")
+        self._navx_yaw = self._navx.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
+        self._navx_angle = self._navx.getDouble("Angle")
 
-            heading = drivetrain.getHeading()
-            trans = Translation2d(dx, dy).rotateBy(heading)
-            rot = (speeds.omega * 180 / math.pi) * dt
+        # analogs = [simlib.AnalogInputSim(i) for i in range(4)]
+        # analog_offsets = []
 
-            g = drivetrain.gyro
-            g.setAngleAdjustment(g.getAngleAdjustment() + rot * DriveConstants.kGyroReversed)
-            drivetrain.adjustOdometry(trans, Rotation2d())
+        # kinematics chassis speeds wants them in same order as in original definition - unfortunate ordering
+        spark_drives = ['lf_drive', 'rf_drive', 'lb_drive', 'rb_drive']
+        spark_drive_ids = [21, 25, 23, 27]  # keep in this order - based on our kinematics definition
+        self.spark_turns = ['lf_turn', 'rf_turn', 'lb_turn', 'rb_turn']
+        spark_turn_ids = [20, 24, 22, 26]  # keep in this order
+
+        # Got rid of last year's elements: 'br_crank', 'bl_crank', 'tr_crank', 'tl_crank', 't_shooter', 'b_shooter'
+        spark_peripherals = ['intake', 'indexer']
+        spark_peripheral_ids = [5, 12]  # Kept  'indexer' id as 12 because it came last before removing the elements
+
+        # allow ourselves to access the sim device's Position, Velocity, Applied Output, etc
+        spark_names = spark_drives + self.spark_turns + spark_peripherals
+        spark_ids = spark_drive_ids + spark_turn_ids + spark_peripheral_ids
+
+        # create a dictionary so we can refer to the sparks by name and get their relevant parameters
+        self.spark_dict = {}
+        for idx, (spark_name, can_id) in enumerate(zip(spark_names, spark_ids)):
+            spark = simlib.SimDeviceSim(f'SPARK MAX [{can_id}]')
+
+            self.spark_dict[spark_name] = {
+                'controller': spark,
+                'position': spark.getDouble('Position'),
+                'velocity': spark.getDouble('Velocity'),
+                'output': spark.getDouble('Applied Output')
+            }
+        # for key, value in self.spark_dict.items():  # see if these make sense
+        #     print(f'{key}: {value}')
+
+        # self.distances = [0, 0, 0, 0]
+
+        # set up the initial location of the robot on the field
+        # TODO: self.x, self.y = constants.k_start_x, constants.k_start_y       (RECONCILE with simulation init)
+        x, y = 0.5, 2.0
+        theta = 0.0
+
+        initial_pose = Pose2d(x, y, Rotation2d(theta))
+        self._physics_controller.field.setRobotPose(initial_pose)  # Make position a constant of settable somehow
+
+    def _update_swerve(self, tm_diff):
+        log_it = self._robot.counter % 20 == 0
+
+        if log_it:
+            logger.debug("Update swerve:===========================================")
+            logger.debug(f"Update swerve: Entry. tm_diff: {tm_diff:.4f}")
+
+        dash_values = ['lf_target_vel_angle', 'rf_target_vel_angle', 'lb_target_vel_angle', 'rb_target_vel_angle']
+        target_angles = [wpilib.SmartDashboard.getNumberArray(dash_value, [0, 0])[1] for dash_value in dash_values]
+        for spark_turn, target_angle in zip(self.spark_turns, target_angles):
+            self.spark_dict[spark_turn]['position'].set(target_angle)  # this works to update the simulated spark
+
+        if self._robot.counter % 10 == 0 and self._robot.isEnabled():
+            wpilib.SmartDashboard.putNumberArray('target_angles', target_angles)
+
+        # send the speeds and positions from the spark sim devices to the fourmotorswervedrivetrain
+        # module_states = [SwerveModuleState(self.spark_dict[drive]['velocity'].value,
+        #                                    geo.Rotation2d(self.spark_dict[turn]['position'].value))
+        #                  for drive, turn in zip(spark_drives, self.spark_turns)]
+
+        # using our own kinematics to update the chassis speeds
+        module_states = self._drivetrain.get_desired_swerve_module_states()
+        speeds = self.kinematics.toChassisSpeeds(module_states)
+
+        if log_it:
+            logger.debug(f"Update swerve before drive command: module states: {module_states}, speeds: {speeds}")
+
+        # update the sim's robot. Returned value is same as what is returned from self._physics_controller.get_pose()
+        pose = self._physics_controller.drive(speeds, tm_diff)
+
+        # Limit it to the field size (manually)  TODO: Is there a programmatic way to do this?
+        x = min(17.5, max(0.0, pose.x))
+        y = min(8.0, max(0.0, pose.y))
+        new_pose = Pose2d(x, y, pose.rotation())
+
+        self._drivetrain.resetSimPose(new_pose, [SwerveModulePosition()] * 4,
+                                      self._physics_controller.get_pose().rotation())
+        previous = self._navx_yaw.get()
+        omega = speeds.omega
+        degrees = math.degrees(speeds.omega * tm_diff)
+        new = self._navx_yaw.get() - math.degrees(speeds.omega * tm_diff)
+
+        if log_it:
+            logger.debug(f"Update swerve: previous: {previous}, new: {new}, omega: {omega}, degrees: {degrees}")
+
+        #  self._navx_yaw.set(self._navx_yaw.get() - math.degrees(speeds.omega * tm_diff))
+        self._navx_yaw.set(-pose.rotation().degrees())

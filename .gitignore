@@ -226,3 +226,4 @@ __marimo__/
 .python-version
 
 # Project specific
+robot/*.json

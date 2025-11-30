@@ -1,8 +1,20 @@
-#
-# Copyright (c) FIRST and other WPILib contributors.
-# Open Source Software; you can modify and/or share it under the terms of
-# the WPILib BSD license file in the root directory of this project.
-#
+# ------------------------------------------------------------------------ #
+#      o-o      o                o                                         #
+#     /         |                |                                         #
+#    O     o  o O-o  o-o o-o     |  oo o--o o-o o-o                        #
+#     \    |  | |  | |-' |   \   o | | |  |  /   /                         #
+#      o-o o--O o-o  o-o o    o-o  o-o-o--O o-o o-o                        #
+#             |                           |                                #
+#          o--o                        o--o                                #
+#                        o--o      o         o                             #
+#                        |   |     |         |  o                          #
+#                        O-Oo  o-o O-o  o-o -o-    o-o o-o                 #
+#                        |  \  | | |  | | |  |  | |     \                  #
+#                        o   o o-o o-o  o-o  o  |  o-o o-o                 #
+#                                                                          #
+#    Jemison High School - Huntsville Alabama                              #
+# ------------------------------------------------------------------------ #
+
 import logging
 import time
 from typing import Optional
@@ -14,6 +26,7 @@ import wpilib
 from wpilib import RobotBase, XboxController
 
 from frc_2025 import constants
+from frc_2025.commands.holonomicdrive import HolonomicDrive
 from frc_2025.subsystems.swervedrive.constants import OIConstants
 from frc_2025.subsystems.swervedrive.drivesubsystem import Swerve
 
@@ -31,83 +44,20 @@ class RobotContainer:
 
     def __init__(self, robot: RobotBase) -> None:
         # The robot's subsystems
-        logger.info("*** called __init__")
+        logger.debug("*** called container __init__")
         self.start_time = time.time()
+        self.robot = robot
 
         self.simulation = RobotBase.isSimulation()
 
         # The driver's controller
         self.driver_controller = commands2.button.CommandXboxController(constants.kDriverControllerPort)
 
-        # # From the 2025 Java
+        # # From the 2025 Java (TODO: Get the JSON files from swerve/neo and update our python code/validate it)
         # filePath = os.path.join(getDeployDirectory(), "swerve/neo")
-        # self.drivebase = SwerveSubsystem(filePath)                    # TODO: Get rid of driveBase
-        # self.drivebase = DriveSubsystem()
-        self.robotDrive = self.drivebase = self.robot_drive = Swerve()  # TODO: Get rid of driveBase
+        # self.robotDrive = SwerveSubsystem(filePath)
+        self.robotDrive = self.robot_drive = Swerve(robot)
 
-        # TODO: Probably can drop all the code below (not applicable since not using the Java library for swerve drive
-        # # Converts driver input into a field-relative ChassisSpeeds that is controlled by angular velocity.
-        # self.driveAngularVelocity = None
-        #
-        # # TODO: Need to figure what the line below does
-        # # SwerveInputStream driveAngularVelocity = SwerveInputStream.of(self.drivebase.getSwerveDrive(),
-        # #                                                         () -> self.driver_controller.getLeftY() * -1,
-        # #                                                         () -> self.driver_controller.getLeftX() * -1)
-        # #                                                     .withControllerRotationAxis(self.driver_controller.getRightX)
-        # #                                                     .deadband(constants.DEADBAND)
-        # #                                                     .scaleTranslation(0.8)
-        # #                                                     .allianceRelativeControl(true)
-        #
-        # # Clone's the angular velocity input stream and converts it to a fieldRelative input stream.
-        # dav_copy = deepcopy(self.driveAngularVelocity)
-        # self.driveDirectAngle = None
-        #
-        # # TODO: Need to figure what the line below does
-        # # SwerveInputStream driveDirectAngle = driveAngularVelocity.copy().withControllerHeadingAxis(self.driver_controller.getRightX,
-        # #                                                                                      self.driver_controller.getRightY)
-        # #                                                    .headingWhile(true)
-        #
-        # # Clone's the angular velocity input stream and converts it to a robotRelative input stream.
-        # dav_copy = deepcopy(self.driveAngularVelocity)
-        # self.driveRobotOriented = None
-        #
-        # # TODO: Need to figure what the line below does
-        # # SwerveInputStream driveRobotOriented = driveAngularVelocity.copy().robotRelative(true)
-        #
-        # self.driveAngularVelocityKeyboard = None
-        #
-        # # TODO: Need to figure what the line below does
-        # # SwerveInputStream driveAngularVelocityKeyboard = SwerveInputStream.of(drivebase.getSwerveDrive(),
-        # #                                                                 () -> -self.driver_controller.getLeftY(),
-        # #                                                                 () -> -self.driver_controller.getLeftX())
-        # #                                                             .withControllerRotationAxis(() -> driverXbox.getRawAxis(
-        # #                                                                 2))
-        # #                                                             .deadband(OperatorConstants.DEADBAND)
-        # #                                                             .scaleTranslation(0.8)
-        # #                                                             .allianceRelativeControl(true);
-        #
-        # # Derive the heading axis with math!
-        # dak_copy = deepcopy(self.driveAngularVelocityKeyboard)
-        # self.driveDirectAngleKeyboard = None
-        #
-        # # TODO: Need to figure what the line below does
-        # # SwerveInputStream driveDirectAngleKeyboard     = driveAngularVelocityKeyboard.copy()
-        # #                                                                        .withControllerHeadingAxis(() ->
-        # #                                                                                                       Math.sin(
-        # #                                                                                                           self.driver_controller.getRawAxis(
-        # #                                                                                                               2) *
-        # #                                                                                                           Math.PI) *
-        # #                                                                                                       (Math.PI *
-        # #                                                                                                        2),
-        # #                                                                                                   () ->
-        # #                                                                                                       Math.cos(
-        # #                                                                                                           self.driver_controller.getRawAxis(
-        # #                                                                                                               2) *
-        # #                                                                                                           Math.PI) *
-        # #                                                                                                       (Math.PI *
-        # #                                                                                                        2))
-        # #                                                                        .headingWhile(true);
-        # #
         # Configure the button bindings and autos
         if isinstance(self.driver_controller, commands2.button.CommandXboxController):
             self.configureButtonBindings_xbox()
@@ -119,8 +69,8 @@ class RobotContainer:
         self.initialize_dashboard()
 
         # Configure default command for driving using joystick sticks
-        from commands.holonomicdrive import HolonomicDrive
-        drive_cmd = HolonomicDrive(self.robotDrive,
+        drive_cmd = HolonomicDrive(self,
+                                   self.robotDrive,
                                    forwardSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftY),
                                    leftSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftX),
                                    rotationSpeed=lambda: -self.driver_controller.getRawAxis(
@@ -132,7 +82,7 @@ class RobotContainer:
 
         self.robotDrive.setDefaultCommand(drive_cmd)
         #
-        # # TODO: Move pathfinding init here so ready for autonomous mode
+        # # TODO: Move pathfinding init here so it is ready for autonomous mode
         #
 
     def set_start_time(self) -> None:  # call in teleopInit and autonomousInit in the robot
@@ -150,20 +100,21 @@ class RobotContainer:
         instantiating a :GenericHID or one of its subclasses (Joystick or XboxController),
         and then passing it to a JoystickButton.
         """
-        logger.info("*** called configureButtonBindings")
+        logger.debug("*** called configureButtonBindings")
 
         # TODO: Need to reconcile with java cade
-        # # driveFieldOrientedDirectAngle      = drivebase.driveFieldOriented(self.driveDirectAngle)
-        # driveFieldOrientedAnglularVelocity = self.drivebase.driveFieldOriented(self.driveAngularVelocity)
-        # driveRobotOrientedAngularVelocity = self.drivebase.driveFieldOriented(self.driveRobotOriented)
+        # # driveFieldOrientedDirectAngle      = robotDrive.driveFieldOriented(self.driveDirectAngle)
+        # driveFieldOrientedAngularVelocity = self.robotDrive.driveFieldOriented(self.driveAngularVelocity)
+        # driveRobotOrientedAngularVelocity = self.robotDrive.driveFieldOriented(self.driveRobotOriented)
         #
-        # self.drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity)
+        # self.robotDrive.setDefaultCommand(driveFieldOrientedAnglularVelocity)
 
-        self.driver_controller.a().onTrue(commands2.cmd.runOnce(lambda:  self.drivebase.zeroGyro))
-        self.driver_controller.y().whileTrue(commands2.cmd.runOnce(lambda: self.drivebase.lock, self.drivebase).repeatedly())
-        self.driver_controller.start().onTrue(commands2.cmd.runOnce(lambda: self.drivebase.resetGyroToInitial))
+        self.driver_controller.a().onTrue(commands2.cmd.runOnce(lambda: self.robotDrive.zeroGyro))
+        self.driver_controller.y().whileTrue(
+            commands2.cmd.runOnce(lambda: self.robotDrive.lock, self.robotDrive).repeatedly())
+        self.driver_controller.start().onTrue(commands2.cmd.runOnce(lambda: self.robotDrive.resetGyroToInitial))
         # self.driver_controller.leftBumper().onTrue(driveRobotOrientedAngularVelocity)
-        # self.driver_controller.rightBumper().onTrue(driveFieldOrientedAnglularVelocity)
+        # self.driver_controller.rightBumper().onTrue(driveFieldOrientedAngularVelocity)
 
     def configureButtonBindings_Joystick(self) -> None:
         """
@@ -171,14 +122,19 @@ class RobotContainer:
         instantiating a :GenericHID or one of its subclasses (Joystick or XboxController),
         and then passing it to a JoystickButton.
         """
-        pass  # TODO: Not supported at this time
+        pass  # TODO: Not supported at this time. If this is supported, look into places where
+        #       XboxController may be used directly (such as in the default drive command
+        #       above). Eventually need to abstract this.
 
     def disablePIDSubsystems(self) -> None:
         """Disables all ProfiledPIDSubsystem and PIDSubsystem instances.
         This should be called on robot disable to prevent integral windup."""
 
-        logger.info("*** called disablePIDSubsystems")
-        self.set_motor_break = True
+        logger.debug("*** called disablePIDSubsystems")
+        self.setMotorBrake(True)
+
+    def setMotorBrake(self, brake: bool) -> None:
+        self.robotDrive.setMotorBrake(brake)
 
     def configureAutos(self):
         self.chosenAuto = wpilib.SendableChooser()
