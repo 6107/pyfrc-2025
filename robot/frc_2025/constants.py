@@ -16,11 +16,10 @@
 # ------------------------------------------------------------------------ #
 #
 # Constants for source in this subdirectory will go here
-import math
 import os
 
 from phoenix6.controls.position_voltage import PositionVoltage
-from wpimath import units, geometry
+from wpimath import units
 
 ###############################################################################
 # OPENTelemetry Support
@@ -101,3 +100,4 @@ TURN_CONSTANT    = 6
 #
 # class OIConstants:
 kDriverControllerPort = 0
+kShooterControllerPort = 1

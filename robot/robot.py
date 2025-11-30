@@ -17,7 +17,6 @@
 # ------------------------------------------------------------------------ #
 
 import logging
-import math
 import sys
 from typing import Optional
 
@@ -25,8 +24,8 @@ import wpilib
 from commands2 import TimedCommandRobot, CommandScheduler
 from commands2.command import Command
 from phoenix6.hardware.talon_fx import TalonFX
-from rev import SparkFlex, SparkMax, SparkLowLevel, SparkClosedLoopController
-from wpilib import Timer, XboxController, RobotBase, DriverStation
+from rev import SparkFlex, SparkMax
+from wpilib import Timer, RobotBase, DriverStation
 
 from frc_2025 import constants
 from frc_2025.robotcontainer import RobotContainer
@@ -59,26 +58,11 @@ class MyRobot(TimedCommandRobot):
         self._container: Optional[RobotContainer] = None
         self.autonomousCommand: Optional[Command] = None
 
-        # TODO: Once working in SIM, move the following into the robot container
-        #       and subsystem as appropriate
-        self.elevator: TalonFX = TalonFX(10)    # Device ID is 10 (as configured in the Phoenix Tuner)
-        self.alge_roller: SparkFlex = SparkFlex(11, SparkLowLevel.MotorType.kBrushless)   # Device ID 11
-        self.alge_rotation: SparkMax = SparkMax(12, SparkLowLevel.MotorType.kBrushless)   # Device ID 12
-
-        self.c_alge_rotation: SparkClosedLoopController = self.alge_rotation.getClosedLoopController()
-
-        self.intake_left: SparkMax = SparkMax(13, SparkLowLevel.MotorType.kBrushless)   # Device ID 13
-        self.intake_right: SparkMax = SparkMax(14, SparkLowLevel.MotorType.kBrushless)   # Device ID 14
-        self.intake_extend: SparkMax = SparkMax(15, SparkLowLevel.MotorType.kBrushless)   # Device ID 15
-
-        self.c_intake_extend: SparkClosedLoopController = self.intake_extend.getClosedLoopController()
-
-        self.controller_shooter: XboxController = XboxController(1) # On USB-port 1
-
         self.disabledTimer: Timer = Timer()
         self.autonomousCommand: Optional[Command] = None
 
         self.holding_alge = False
+        self.autonomousCommand = None
 
     @property
     def container(self) -> RobotContainer:
@@ -87,6 +71,38 @@ class MyRobot(TimedCommandRobot):
     @property
     def counter(self) -> int:
         return self._counter
+
+    @property
+    def elevator(self) -> TalonFX:
+        return self.container.elevator
+
+    @property
+    def alge_roller(self) -> SparkFlex:
+        return self.container.alge_roller
+
+    @property
+    def alge_rotation(self) -> SparkMax:
+        return self.container.alge_rotation
+
+    @property
+    def intake_left(self) -> SparkMax:
+        return self.container.intake_left
+
+    @property
+    def intake_right(self) -> SparkMax:
+        return self.container.intake_right
+
+    @property
+    def intake_extend(self) -> SparkMax:
+        return self.container.intake_extend
+
+    @property
+    def c_alge_rotation(self) -> SparkMax:
+        return self.container.c_alge_rotation
+
+    @property
+    def c_intake_extend(self) -> SparkMax:
+        return self.container.c_intake_extend
 
     # @tracer.start_as_current_span("robotInit")
     def robotInit(self) -> None:
@@ -208,9 +224,8 @@ class MyRobot(TimedCommandRobot):
         """
         logger.info("*** autonomousExit: entry")
 
-        command = self.container.get_autonomous_command()
-        if command:
-            command.cancel()
+        if self.autonomousCommand:
+            self.autonomousCommand.cancel()
 
     def teleopInit(self) -> None:
         """
@@ -245,29 +260,31 @@ class MyRobot(TimedCommandRobot):
             self.intake_left.set(constants.D_ALGE_HOLD_SPEED)
             self.intake_right.set(-constants.D_ALGE_HOLD_SPEED)
 
-        intake_coral = self.controller_shooter.getLeftBumperButton()
+        shooter = self.container.controller_shooter
+
+        intake_coral = shooter.getLeftBumperButton()
         if intake_coral:
             self.intake_left.set(constants.D_CORAL_INTAKE_SPEED)
             self.intake_right.set(-constants.D_CORAL_INTAKE_SPEED)
             self.holding_alge = False
 
-        intake_alge = self.controller_shooter.getLeftTriggerAxis() >= 0.35
+        intake_alge = shooter.getLeftTriggerAxis() >= 0.35
         if intake_alge:
             self.intake_left.set(constants.D_ALGE_INTAKE_SPEED)
             self.intake_right.set(-constants.D_ALGE_INTAKE_SPEED)
             self.holding_alge = True
 
-        b_shoot = self.controller_shooter.getRightTriggerAxis() >= 0.35
+        b_shoot = shooter.getRightTriggerAxis() >= 0.35
         if b_shoot:
             self.intake_left.set(constants.D_SHOOT_SPEED)
             self.intake_right.set(-constants.D_SHOOT_SPEED)
             self.holding_alge = False
 
         # Elevator control logic
-        pos_l0 = self.controller_shooter.getRightBumperButtonPressed()
-        pos_l1 = self.controller_shooter.getAButtonPressed()
-        pos_l2 = self.controller_shooter.getXButtonPressed()
-        pos_l3 = self.controller_shooter.getYButtonPressed()
+        pos_l0 = shooter.getRightBumperButtonPressed()
+        pos_l1 = shooter.getAButtonPressed()
+        pos_l2 = shooter.getXButtonPressed()
+        pos_l3 = shooter.getYButtonPressed()
 
         if pos_l0:
             self.elevator.set_control(constants.EL_POS_L0)
@@ -281,13 +298,12 @@ class MyRobot(TimedCommandRobot):
         if pos_l3:
             self.elevator.set_control(constants.EL_POS_L3)
 
-        pos_intake = self.controller_shooter.getBButtonPressed()
+        pos_intake = shooter.getBButtonPressed()
         if pos_intake:
             self.elevator.set_control(constants.EL_POS_IN)
 
-        intake_extend = math.fabs(self.controller_shooter.getLeftY())
-
         # TODO: Support additional subsystems
+        # intake_extend = math.fabs(shooter.getLeftY())
         # # Intake extender logic
         # if intake_extend >= constants.DEADBAND:
         #     self.intake_extend.setReference(intake_extend * constants.I_INTAKE_EXTEND_MAX,
@@ -295,8 +311,8 @@ class MyRobot(TimedCommandRobot):
         # else:
         #     self.intake_extend.setReference(0, SparkBase.ControlType.kPosition)
         #
-        # shoot     = self.controller_shooter.getRightTriggerAxis() >= 0.35
-        # alge_grab = self.controller_shooter.getRightStickButton()
+        # shoot     = shooter.getRightTriggerAxis() >= 0.35
+        # alge_grab = shooter.getRightStickButton()
         #
         # # Alge intake control logic
         # if alge_grab:
