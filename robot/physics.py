@@ -58,7 +58,7 @@ class PhysicsEngine:
         """
         logger.info("PhysicsEngine: entry")
 
-        self._physics_controller = self._physics_controller = physics_controller
+        self._physics_controller = physics_controller
         self._robot: MyRobot = robot
         self._drivetrain = robot.container.robotDrive
 
@@ -133,6 +133,7 @@ class PhysicsEngine:
 
         # set up the initial location of the robot on the field
         # TODO: self.x, self.y = constants.k_start_x, constants.k_start_y       (RECONCILE with simulation init)
+        # TODO: Make it red/blue alliance aware...
         x, y = 0.5, 2.0
         theta = 0.0
 
