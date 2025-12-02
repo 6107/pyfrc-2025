@@ -220,7 +220,15 @@ class RobotContainer:
         return command()
 
     def configureAutos(self):
+        """
+        Implement a dashboard 'Chosen" dialog that allows us to select which 'automation'
+        commands to run when we enter the Autonomous phase.
+        """
         self.chosenAuto = SendableChooser()
+
+        # TODO: Create more than one for both red and blue aliances, perhaps even have them
+        #       mapped out to show our allies so we can maximize the chance of scoring more
+        #       during the autonomous stage
         # you can also set the default option, if needed
         self.chosenAuto.setDefaultOption("trajectory example", self.getAutonomousTrajectoryExample)
         self.chosenAuto.addOption("left blue", self.getAutonomousLeftBlue)

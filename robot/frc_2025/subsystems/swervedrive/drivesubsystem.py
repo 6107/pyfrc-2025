@@ -15,6 +15,8 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 
+import logging
+import math
 from typing import Callable, Tuple, Optional, List, Dict, Union
 
 import navx
@@ -28,12 +30,12 @@ from wpimath.controller import PIDController
 from wpimath.estimator import SwerveDrive4PoseEstimator
 from wpimath.filter import SlewRateLimiter
 from wpimath.geometry import Transform2d, Transform3d, Translation3d, Rotation3d, \
-    Pose3d
+    Pose3d, Rotation2d, Translation2d, Pose2d
 from wpimath.kinematics import ChassisSpeeds, SwerveModuleState, SwerveDrive4Kinematics, SwerveDrive4Odometry
 
-import swerveutils
-from frc_2025.reefscape import *
+from frc_2025.reefscape import RED_TEST_POSE, BLUE_TEST_POSE
 from frc_2025.subsystems import constants
+from frc_2025.subsystems.swervedrive import swerveutils
 from frc_2025.subsystems.swervedrive.constants import DriveConstants, ModuleConstants
 from frc_2025.subsystems.swervedrive.maxswervemodule import MAXSwerveModule
 from lib_6107.subsystems.swerve_constants import DriveConstants as sdc
@@ -156,12 +158,12 @@ class DriveSubsystem(Subsystem):
 
         if not self.vision_supported or RobotBase.isSimulation():
             # Odometry class for tracking robot pose
-            self.odometry = SwerveDrive4Odometry(
-                DriveConstants.kDriveKinematics,
-                Rotation2d(),
-                (self.frontLeft.getPosition(), self.frontRight.getPosition(),
-                 self.rearLeft.getPosition(), self.rearRight.getPosition()),
-            )
+            self.odometry = SwerveDrive4Odometry(DriveConstants.kDriveKinematics,
+                                                 Rotation2d(),
+                                                 (self.frontLeft.getPosition(),
+                                                  self.frontRight.getPosition(),
+                                                  self.rearLeft.getPosition(),
+                                                  self.rearRight.getPosition()))
             self.field_relative = False
             self.odometryHeadingOffset = Rotation2d(0)
 
@@ -341,7 +343,6 @@ class DriveSubsystem(Subsystem):
             # Use test subsystem settings if simulation
             initial_pose = RED_TEST_POSE if is_red else BLUE_TEST_POSE
             self.resetOdometry(initial_pose)
-            # TODO: what about the Navx?
 
     def periodic(self) -> None:
         log_it = self._robot.counter % 20 == 0 and self._robot.isEnabled()

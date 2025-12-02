@@ -28,8 +28,6 @@
 #
 # Examples can be found at https://github.com/robotpy/examples
 
-import math
-
 import wpilib
 import wpilib.simulation as simlib  # 2021 name for the simulation library
 from pyfrc.physics.core import PhysicsInterface
@@ -95,10 +93,11 @@ class PhysicsEngine:
             # TODO: update battery with amps consumed
 
     def _alliance_change(self, is_red: bool) -> None:
-
+        """
+        Called whenever the alliance changes colors before the match / competition begins
+        """
         initial_pose = RED_TEST_POSE if is_red else BLUE_TEST_POSE
         self._physics_controller.field.setRobotPose(initial_pose)
-        # TODO: what about the Navx?
 
     def _initialize_swerve(self):
         self.kinematics: SwerveDrive4Kinematics = DriveConstants.kDriveKinematics  # our swerve drive kinematics

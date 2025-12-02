@@ -17,7 +17,6 @@
 
 import math
 
-
 def stepTowards(current: float, target: float, stepsize: float) -> float:
     """
     Steps a value towards a target with a specified step size.
@@ -48,7 +47,6 @@ def stepTowardsCircular(current: float, target: float, stepsize: float) -> float
     :returns: The new angle (in radians) for {@code current} after performing the specified step towards the specified target.
               This value will always lie in the range 0 to 2*PI (exclusive).
     """
-
     current = wrapAngle(current)
     target = wrapAngle(target)
 

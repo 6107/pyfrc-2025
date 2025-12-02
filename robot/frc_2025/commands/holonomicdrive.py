@@ -16,9 +16,7 @@
 # ------------------------------------------------------------------------ #
 # From Gene Panov's (Team 714) CommandRevSwerve project (and FRC Python videos)
 
-
 import logging
-from tabnanny import format_witnesses
 from typing import Optional
 
 import commands2

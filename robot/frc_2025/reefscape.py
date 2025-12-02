@@ -29,8 +29,9 @@
 # Examples can be found at https://github.com/robotpy/examples
 
 import logging
+import math
 
-from wpimath.geometry import Pose2d
+from wpimath.geometry import Pose2d, Rotation2d
 from wpimath.units import inchesToMeters
 
 from utilities.game import field_flip_pose2d
@@ -46,7 +47,7 @@ MID_FIELD = FIELD_Y_SIZE / 2
 BLUE_START_LINE = inchesToMeters(144 - 14 + 93.5 + 88)
 RED_START_LINE = inchesToMeters(FIELD_Y_SIZE - BLUE_START_LINE)
 
-BLUE_TEST_POSE = Pose2d(BLUE_START_LINE, MID_FIELD, -180)
+BLUE_TEST_POSE = Pose2d(BLUE_START_LINE, MID_FIELD, Rotation2d(math.pi))
 RED_TEST_POSE = field_flip_pose2d(BLUE_TEST_POSE)
 
 
