@@ -17,19 +17,22 @@
 
 import logging
 import time
-from typing import Optional
+from typing import List, Optional, Callable
 
 import commands2
 import commands2.button
 import commands2.cmd
 from phoenix6.hardware.talon_fx import TalonFX
 from rev import SparkFlex, SparkMax, SparkLowLevel, SparkClosedLoopController
-from wpilib import RobotBase, XboxController, SmartDashboard, SendableChooser
+from wpilib import RobotBase, XboxController, SmartDashboard, SendableChooser, Field2d, \
+    DriverStation
 
 from frc_2025 import constants
 from frc_2025.commands.holonomicdrive import HolonomicDrive
 from frc_2025.subsystems.swervedrive.constants import OIConstants
-from frc_2025.subsystems.swervedrive.drivesubsystem import Swerve
+from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem
+from lib_6107.commands.reset_xy import ResetXY
+from lib_6107.commands.trajectory import SwerveTrajectory
 
 # TODO: pathplanner stuff needed?
 
@@ -43,13 +46,17 @@ class RobotContainer:
     subsystems, commands, and button mappings) should be declared here.
     """
 
-    def __init__(self, robot: RobotBase) -> None:
+    def __init__(self, robot: 'MyRobot') -> None:
         # The robot's subsystems
         logger.debug("*** called container __init__")
         self.start_time = time.time()
         self.robot = robot
 
         self.simulation = RobotBase.isSimulation()
+
+        # Alliance support
+        self._is_red_alliance: bool = False  # Coordinate system based off of blue being to the 'left'
+        self._alliance_change_callbacks: List[Callable[[bool], None]] = []
 
         # The driver's controller
         self.driver_controller = commands2.button.CommandXboxController(constants.kDriverControllerPort)
@@ -72,19 +79,23 @@ class RobotContainer:
         # # From the 2025 Java (TODO: Get the JSON files from swerve/neo and update our python code/validate it)
         # filePath = os.path.join(getDeployDirectory(), "swerve/neo")
         # self.robotDrive = SwerveSubsystem(filePath)
-        self.robotDrive = self.robot_drive = Swerve(robot)
+        self.robotDrive = self.robot_drive = DriveSubsystem(robot, self)  # TODO: drop robotDrive later
 
-        # Configure the button bindings and autos
+        # Configure the button bindings
         if isinstance(self.driver_controller, commands2.button.CommandXboxController):
             self.configureButtonBindings_xbox()
         else:
             self.configureButtonBindings_Joystick()
 
+        # Configure the autos
         self.configureAutos()
 
+        # Dashboard setup
         self.initialize_dashboard()
 
         # Configure default command for driving using joystick sticks
+        field_relative = self.robot_drive.field_relative
+
         drive_cmd = HolonomicDrive(self,
                                    self.robotDrive,
                                    forwardSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftY),
@@ -92,7 +103,7 @@ class RobotContainer:
                                    rotationSpeed=lambda: -self.driver_controller.getRawAxis(
                                        XboxController.Axis.kRightX),
                                    deadband=OIConstants.kDriveDeadband,
-                                   fieldRelative=True,
+                                   field_relative=field_relative,
                                    rateLimit=True,
                                    square=True)
 
@@ -100,6 +111,29 @@ class RobotContainer:
         #
         # # TODO: Move pathfinding init here so it is ready for autonomous mode
         #
+
+    @property
+    def field(self) -> Field2d:
+        return self.robot.field
+
+    @property
+    def is_red_alliance(self) -> bool:
+        """
+        Are we in the red alliance?
+
+        The coordinate system is based on the Blue Alliance being to the left (lower x-axis).
+        This method provides an 'if' capable function that can be called by routines that need
+        a coordinate transformation if we are in the red alliance.
+        """
+        return self._is_red_alliance
+
+    def register_alliance_change_callback(self, callback: Callable[[bool], None]):
+        """
+        Subsystems (or simulation physics) can register for changed to the SmartDashboard alliance
+        settings. If a change occurs before a match starts, then this allows for changed to be
+        easily captured.
+        """
+        self._alliance_change_callbacks.append(callback)
 
     def set_start_time(self) -> None:  # call in teleopInit and autonomousInit in the robot
         self.start_time = time.time()
@@ -109,6 +143,32 @@ class RobotContainer:
 
     def elapsed_time(self) -> float:
         return time.time() - self.start_time
+
+    def check_alliance(self) -> None:
+        """
+        Support alliance changes up until we start the competition. Default is the blue
+        alliance and this function is called during 'disable_periodic' and at the init functions
+        for both the Autonomous and Teleop stages.
+
+        Once 'match_started' is True, we are locked into the alliance.
+        """
+        if not self.robot.match_started:
+            # Note that if 'None' is returned for the alliance, we assume Blue
+            is_red = DriverStation.getAlliance() == DriverStation.Alliance.kRed
+
+            if self._is_red_alliance != is_red:
+                # Change of alliance. Update any subsystem or other object that needs
+                # to know.
+                self._is_red_alliance = is_red
+                for callback in self._alliance_change_callbacks:
+                    callback(is_red)
+
+    def register_alliance_change_callback(self, callback: Callable[[bool], None]) -> None:
+        """
+        For subsystems and objects that need to know about alliance changes before the
+        match begins.
+        """
+        self._alliance_change_callbacks.append(callback)
 
     def configureButtonBindings_xbox(self) -> None:
         """
@@ -152,6 +212,13 @@ class RobotContainer:
     def setMotorBrake(self, brake: bool) -> None:
         self.robotDrive.setMotorBrake(brake)
 
+    def getAutonomousCommand(self) -> commands2.Command:
+        """
+        :returns: the command to run in autonomous
+        """
+        command = self.chosenAuto.getSelected()
+        return command()
+
     def configureAutos(self):
         self.chosenAuto = SendableChooser()
         # you can also set the default option, if needed
@@ -161,7 +228,7 @@ class RobotContainer:
         SmartDashboard.putData("Chosen Auto", self.chosenAuto)
 
     def getAutonomousLeftBlue(self):
-        setStartPose = ResetXY(x=0.783, y=6.686, headingDegrees=+60, drivetrain=self.robotDrive)
+        setStartPose = ResetXY(x=0.783, y=6.686, heading_degrees=+60, drivetrain=self.robotDrive)
         driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robotDrive)
         stop = commands2.InstantCommand(lambda: self.robotDrive.arcadeDrive(0, 0))
 
@@ -169,7 +236,7 @@ class RobotContainer:
         return command
 
     def getAutonomousLeftRed(self):
-        setStartPose = ResetXY(x=15.777, y=4.431, headingDegrees=-120, drivetrain=self.robotDrive)
+        setStartPose = ResetXY(x=15.777, y=4.431, heading_degrees=-120, drivetrain=self.robotDrive)
         driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robotDrive)
         stop = commands2.InstantCommand(lambda: self.robotDrive.arcadeDrive(0, 0))
 
@@ -190,7 +257,6 @@ class RobotContainer:
             flipIfRed=False,  # if you want the trajectory to flip when team is red, set =True
             stopAtEnd=True,  # to keep driving onto next command, set =False
         )
-
         return command
 
     def getTestCommand(self) -> Optional[commands2.Command]:

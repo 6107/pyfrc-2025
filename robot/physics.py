@@ -28,16 +28,14 @@
 #
 # Examples can be found at https://github.com/robotpy/examples
 
-import logging
 import math
 
 import wpilib
 import wpilib.simulation as simlib  # 2021 name for the simulation library
 from pyfrc.physics.core import PhysicsInterface
-from wpilib import Field2d, SmartDashboard
-from wpimath.geometry import Pose2d, Rotation2d
 from wpimath.kinematics._kinematics import SwerveDrive4Kinematics, SwerveModulePosition
 
+from frc_2025.reefscape import *
 from lib_6107.subsystems.swerve_constants import DriveConstants
 from robot import MyRobot
 
@@ -67,16 +65,25 @@ class PhysicsEngine:
 
         # TODO: Bunch of work needed here?  Perhaps setting our pose as least
 
-        # Set up field
-        self._field = Field2d()
-        SmartDashboard.putData("Field", self._field)
+        # Set up field, it is declared in the physics controller simulation file
+        # and initialized in the _simulationInit() method and it initializes teh
+        # SmartDashboard.
+        self.field = physics_controller.field
 
-    def update_sim(self, now: float, tm_diff: float) -> None:
+        # Register for any changes in alliance before the match starts
+        robot.container.register_alliance_change_callback(self._alliance_change)
+        self._alliance_change(self._robot.container.is_red_alliance)
+
+        # TODO: If vision odometry is supported in simulation, this may need to be
+        #       changed to the robot's field view and not the 'overhead' view of the
+        #       playing field.
+
+    def update_sim(self, _now: float, tm_diff: float) -> None:
         """
         Called when the simulation parameters for the program need to be
         updated.
 
-        :param now: The current time as a float
+        :param _now: The current time as a float
         :param tm_diff: The amount of time that has passed since the last
                         time that this function was called
         """
@@ -86,6 +93,12 @@ class PhysicsEngine:
             # TODO: Add update sim methods for other subsystems (return amps used)
             self._update_swerve(tm_diff)  # TODO: Return amps used
             # TODO: update battery with amps consumed
+
+    def _alliance_change(self, is_red: bool) -> None:
+
+        initial_pose = RED_TEST_POSE if is_red else BLUE_TEST_POSE
+        self._physics_controller.field.setRobotPose(initial_pose)
+        # TODO: what about the Navx?
 
     def _initialize_swerve(self):
         self.kinematics: SwerveDrive4Kinematics = DriveConstants.kDriveKinematics  # our swerve drive kinematics
@@ -97,6 +110,8 @@ class PhysicsEngine:
         self._navx = simlib.SimDeviceSim("navX-Sensor[4]")
         self._navx_yaw = self._navx.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
         self._navx_angle = self._navx.getDouble("Angle")
+
+        # self._navx_angle.set(self._physics_controller.get_pose().rotation().degrees())
 
         # analogs = [simlib.AnalogInputSim(i) for i in range(4)]
         # analog_offsets = []
@@ -132,13 +147,7 @@ class PhysicsEngine:
         # self.distances = [0, 0, 0, 0]
 
         # set up the initial location of the robot on the field
-        # TODO: self.x, self.y = constants.k_start_x, constants.k_start_y       (RECONCILE with simulation init)
-        # TODO: Make it red/blue alliance aware...
-        x, y = 0.5, 2.0
-        theta = 0.0
-
-        initial_pose = Pose2d(x, y, Rotation2d(theta))
-        self._physics_controller.field.setRobotPose(initial_pose)  # Make position a constant of settable somehow
+        self._alliance_change(self._robot.container.is_red_alliance)
 
     def _update_swerve(self, tm_diff):
         log_it = self._robot.counter % 20 == 0

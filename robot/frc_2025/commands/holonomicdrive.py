@@ -18,6 +18,8 @@
 
 
 import logging
+from tabnanny import format_witnesses
+from typing import Optional
 
 import commands2
 from wpimath import applyDeadband
@@ -31,13 +33,15 @@ class HolonomicDrive(commands2.Command):
     (examples: mecanum drivetrain, ball drivetrain, swerve drivetrain)
     """
 
-    def __init__(self, robot_container, drivetrain, forwardSpeed, leftSpeed, rotationSpeed, deadband=0, **kwargs):
+    def __init__(self, robot_container, drivetrain, forwardSpeed, leftSpeed, rotationSpeed, deadband=0,
+                 field_relative: Optional[bool] = False, rateLimit: bool = False, square: bool = False):
         """
         Drive the robot at `driveSpeed` and `rotationSpeed` until this command is terminated.
         """
         super().__init__()
 
         self.robot = robot_container.robot
+        self.container = robot_container
 
         self.forwardSpeed = forwardSpeed
         if not callable(forwardSpeed):
@@ -55,7 +59,10 @@ class HolonomicDrive(commands2.Command):
         self.deadband = deadband
 
         self.drivetrain = drivetrain
-        self.kwargs = kwargs
+        self.rate_limit = rateLimit
+        self.square = square
+
+        self.field_relative = field_relative
 
         self.addRequirements(drivetrain)
 
@@ -66,22 +73,22 @@ class HolonomicDrive(commands2.Command):
         return False  # never finishes, you should use it with "withTimeout(...)"
 
     def execute(self):
+        forward_speed = self.forwardSpeed()
+        left_speed = self.leftSpeed()
+        rotation_speed = self.rotationSpeed()
+
+        flipped = not self.field_relative and self.container.is_red_alliance
+        if flipped:
+            forward_speed, left_speed = -forward_speed, -left_speed
+
         if self.robot.isEnabled() and self.robot.counter % 20 == 0:
-            forwardSpeed = self.forwardSpeed()
-            leftSpeed = self.leftSpeed()
-            rotationSpeed = self.rotationSpeed()
-
             logger.debug(
-                f"HolonomicDrive command (before): forward={forwardSpeed}, left={leftSpeed}, rotation={rotationSpeed}, deadband={self.deadband}")
-            logger.debug(
-                f"HolonomicDrive command (before): forward={applyDeadband(self.forwardSpeed(), self.deadband)}, left={applyDeadband(self.leftSpeed(), self.deadband)}, rotation={applyDeadband(self.rotationSpeed(), self.deadband)}")
+                f"HolonomicDrive command: forward={forward_speed}, left={left_speed}, rotation={left_speed}, deadband={self.deadband}, flipped: {flipped}")
 
-        self.drivetrain.drive(
-            applyDeadband(self.forwardSpeed(), self.deadband),
-            applyDeadband(self.leftSpeed(), self.deadband),
-            applyDeadband(self.rotationSpeed(), self.deadband),
-            **self.kwargs
-        )
+        self.drivetrain.drive(applyDeadband(forward_speed, self.deadband),
+                              applyDeadband(left_speed, self.deadband),
+                              applyDeadband(rotation_speed, self.deadband),
+                              self.field_relative, self.rate_limit, self.square)
 
     def end(self, interrupted: bool):
         self.drivetrain.stop()  # stop immediately if command is ending

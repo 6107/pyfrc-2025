@@ -1,0 +1,70 @@
+# ------------------------------------------------------------------------ #
+#      o-o      o                o                                         #
+#     /         |                |                                         #
+#    O     o  o O-o  o-o o-o     |  oo o--o o-o o-o                        #
+#     \    |  | |  | |-' |   \   o | | |  |  /   /                         #
+#      o-o o--O o-o  o-o o    o-o  o-o-o--O o-o o-o                        #
+#             |                           |                                #
+#          o--o                        o--o                                #
+#                        o--o      o         o                             #
+#                        |   |     |         |  o                          #
+#                        O-Oo  o-o O-o  o-o -o-    o-o o-o                 #
+#                        |  \  | | |  | | |  |  | |     \                  #
+#                        o   o o-o o-o  o-o  o  |  o-o o-o                 #
+#                                                                          #
+#    Jemison High School - Huntsville Alabama                              #
+# ------------------------------------------------------------------------ #
+#
+# See the documentation for more details on how this works
+#
+# Documentation can be found at https://robotpy.readthedocs.io/projects/pyfrc/en/latest/physics.html
+#
+# The idea here is you provide a simulation object that overrides specific
+# pieces of WPILib, and modifies motors/sensors accordingly depending on the
+# state of the simulation. An example of this would be measuring a motor
+# moving for a set period of time, and then changing a limit switch to turn
+# on after that period of time. This can help you do more complex simulations
+# of your robot code without too much extra effort.
+#
+# Examples can be found at https://github.com/robotpy/examples
+
+import logging
+
+from wpimath.geometry import Pose2d
+from wpimath.units import inchesToMeters
+
+from utilities.game import field_flip_pose2d
+
+# Setup Logging
+logger = logging.getLogger(__name__)
+
+FIELD_X_SIZE = 17.55
+FIELD_Y_SIZE = 8.05
+CENTER_LINE = FIELD_X_SIZE / 2
+MID_FIELD = FIELD_Y_SIZE / 2
+
+BLUE_START_LINE = inchesToMeters(144 - 14 + 93.5 + 88)
+RED_START_LINE = inchesToMeters(FIELD_Y_SIZE - BLUE_START_LINE)
+
+BLUE_TEST_POSE = Pose2d(BLUE_START_LINE, MID_FIELD, -180)
+RED_TEST_POSE = field_flip_pose2d(BLUE_TEST_POSE)
+
+
+# BLUE_PODIUM_1 = Pose2d(Translation2d(0.48, CENTER_LINE - ), Rotation2d(math.pi))
+# RED_PODIUM = field_flip_pose2d(BLUE_PODIUM)
+
+
+class ReefScapeField:
+    """
+    This class supports BLUE/RED alliances.
+
+    When looking at the playing field, the origin is 0,0 (bottom left corner in landscape
+    mode) with the Blue team on the left (lowest x-coordinate).  For the three teams in
+    an alliance, we also assume
+
+    NOTE: Any positional information will change each year based on the field. One other
+          assumption is that
+
+    All values are in meters
+    """
+    pass

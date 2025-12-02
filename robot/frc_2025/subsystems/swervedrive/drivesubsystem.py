@@ -15,26 +15,24 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 
-import logging
-import math
 from typing import Callable, Tuple, Optional, List, Dict, Union
 
 import navx
 import ntcore
 import robotpy_apriltag as apriltag
-import wpilib
 from commands2 import Subsystem, TimedCommandRobot, InstantCommand
 from rev import SparkFlex
-from wpilib import SmartDashboard, Field2d, RobotBase, DriverStation, simulation
+from wpilib import SmartDashboard, Field2d, RobotBase, Timer
+from wpilib.simulation import SimDeviceSim
 from wpimath.controller import PIDController
 from wpimath.estimator import SwerveDrive4PoseEstimator
 from wpimath.filter import SlewRateLimiter
-from wpimath.geometry import Pose2d, Rotation2d, Translation2d, Transform2d, Transform3d, Translation3d, Rotation3d, \
+from wpimath.geometry import Transform2d, Transform3d, Translation3d, Rotation3d, \
     Pose3d
 from wpimath.kinematics import ChassisSpeeds, SwerveModuleState, SwerveDrive4Kinematics, SwerveDrive4Odometry
-from wpimath.units import inchesToMeters
 
 import swerveutils
+from frc_2025.reefscape import *
 from frc_2025.subsystems import constants
 from frc_2025.subsystems.swervedrive.constants import DriveConstants, ModuleConstants
 from frc_2025.subsystems.swervedrive.maxswervemodule import MAXSwerveModule
@@ -50,14 +48,16 @@ SwerveModuleStats = Tuple[SwerveModuleState, SwerveModuleState, SwerveModuleStat
 logger = logging.getLogger(__name__)
 
 
-class Swerve(Subsystem):
-    def __init__(self, robot: 'MyRobot', maxSpeedScaleFactor: Optional[Callable[[None], float]] = None) -> None:
+class DriveSubsystem(Subsystem):
+    def __init__(self, robot: 'MyRobot', container: 'RobotContainer',
+                 maxSpeedScaleFactor: Optional[Callable[[None], float]] = None) -> None:
         super().__init__()
         if maxSpeedScaleFactor is not None:
             assert callable(maxSpeedScaleFactor)
 
         self._robot = robot
         self.vision_supported = constants.k_use_vision_odometry
+        self.field_relative = False
 
         self.maxSpeedScaleFactor: Optional[Callable[[None], float]] = maxSpeedScaleFactor
 
@@ -118,7 +118,7 @@ class Swerve(Subsystem):
 
         # timer and variables for checking if we should be using pid on rotation
         self.keep_angle = 0.0  # the heading we try to maintain when not rotating
-        self.keep_angle_timer = wpilib.Timer()
+        self.keep_angle_timer = Timer()
         self.keep_angle_timer.start()
         self.keep_angle_timer.reset()
         self.keep_angle_pid = PIDController(0.015, 0, 0)  # TODO: put these in constants.  allow 1% stick per degree
@@ -147,7 +147,7 @@ class Swerve(Subsystem):
 
         self.magLimiter = SlewRateLimiter(DriveConstants.kMagnitudeSlewRate)
         self.rotLimiter = SlewRateLimiter(DriveConstants.kRotationalSlewRate)
-        self.prevTime = wpilib.Timer.getFPGATimestamp()
+        self.prevTime = Timer.getFPGATimestamp()
 
         # The next attributes are set depending on if vision is upported for tracking the robot pose
         self.odometry = None
@@ -162,18 +162,28 @@ class Swerve(Subsystem):
                 (self.frontLeft.getPosition(), self.frontRight.getPosition(),
                  self.rearLeft.getPosition(), self.rearRight.getPosition()),
             )
+            self.field_relative = False
             self.odometryHeadingOffset = Rotation2d(0)
-            self.resetOdometry(Pose2d(0, 0, 0))
-            self.field = Field2d()
+
+            # Register for any changes in alliance before the match starts
+            container.register_alliance_change_callback(self._alliance_change)
+            self._alliance_change(container.is_red_alliance)
+
         else:
+            self.field_relative = True
             self._init_vision_odometry()
-            self.field = self.quest_field
+            # self.field = self.quest_field
+            self._robot.field = self.quest_field
 
         SmartDashboard.putData("Field", self.field)
 
     @property
     def counter(self) -> int:
         return self._robot.counter
+
+    @property
+    def field(self) -> Field2d:
+        return self._robot.field
 
     def _init_vision_odometry(self):
         # TODO: Below is code from team 2429 where they use vision to estimate position.
@@ -311,16 +321,27 @@ class Swerve(Subsystem):
             SmartDashboard.putBoolean('questnav_in_use', self.use_quest)
 
             # note - have Risaku standardize these with the rest of the putDatas
-            wpilib.SmartDashboard.putData('QuestResetOdometry',
+            SmartDashboard.putData('QuestResetOdometry',
                                           InstantCommand(lambda: self.quest_reset_odometry()).ignoringDisable(True))
-            wpilib.SmartDashboard.putData('QuestSyncOdometry',
+            SmartDashboard.putData('QuestSyncOdometry',
                                           InstantCommand(lambda: self.quest_sync_odometry()).ignoringDisable(True))
-            # wpilib.SmartDashboard.putData('QuestUnSync', InstantCommand(lambda: self.quest_unsync_odometry()).ignoringDisable(True))
-            wpilib.SmartDashboard.putData('QuestEnableToggle',
+            # SmartDashboard.putData('QuestUnSync', InstantCommand(lambda: self.quest_unsync_odometry()).ignoringDisable(True))
+            SmartDashboard.putData('QuestEnableToggle',
                                           InstantCommand(lambda: self.quest_enabled_toggle()).ignoringDisable(True))
-            wpilib.SmartDashboard.putData('QuestSyncToggle',
+            SmartDashboard.putData('QuestSyncToggle',
                                           InstantCommand(lambda: self.quest_sync_toggle()).ignoringDisable(True))
             # end of init
+
+    def _alliance_change(self, is_red: bool) -> None:
+        """
+        Change in alliance occurred before match started. If simulation is
+        supported, then 'physics.py' handles this.
+        """
+        if RobotBase.isSimulation():
+            # Use test subsystem settings if simulation
+            initial_pose = RED_TEST_POSE if is_red else BLUE_TEST_POSE
+            self.resetOdometry(initial_pose)
+            # TODO: what about the Navx?
 
     def periodic(self) -> None:
         log_it = self._robot.counter % 20 == 0 and self._robot.isEnabled()
@@ -334,20 +355,20 @@ class Swerve(Subsystem):
 
         pose = self.get_pose()  # self.odometry.getPose()
         if update_dash:
-            wpilib.SmartDashboard.putNumberArray('drive_pose', [pose.X(), pose.Y(), pose.rotation().degrees()])
-            wpilib.SmartDashboard.putNumber('drive_x', pose.X())
-            wpilib.SmartDashboard.putNumber('drive_y', pose.Y())
-            wpilib.SmartDashboard.putNumber('drive_theta', pose.rotation().degrees())
+            SmartDashboard.putNumberArray('drive_pose', [pose.X(), pose.Y(), pose.rotation().degrees()])
+            SmartDashboard.putNumber('drive_x', pose.X())
+            SmartDashboard.putNumber('drive_y', pose.Y())
+            SmartDashboard.putNumber('drive_theta', pose.rotation().degrees())
 
-            wpilib.SmartDashboard.putNumber('_navx', self.get_angle())
-            wpilib.SmartDashboard.putNumber('_navx_yaw', self.get_yaw())
-            wpilib.SmartDashboard.putNumber('_navx_angle', self.get_gyro_angle())
+            SmartDashboard.putNumber('_navx', self.get_angle())
+            SmartDashboard.putNumber('_navx_yaw', self.get_yaw())
+            SmartDashboard.putNumber('_navx_angle', self.get_gyro_angle())
 
-            wpilib.SmartDashboard.putNumber('keep_angle', self.keep_angle)
+            SmartDashboard.putNumber('keep_angle', self.keep_angle)
 
             # post yaw, pitch, roll so we can see what is going on with the climb
             ypr = [self.navx.getYaw(), self.get_pitch(), self.navx.getRoll(), self.navx.getRotation2d().degrees()]
-            wpilib.SmartDashboard.putNumberArray('_navx_YPR', ypr)
+            SmartDashboard.putNumberArray('_navx_YPR', ypr)
 
         fl_pos = self.frontLeft.getPosition()
         fr_pos = self.frontRight.getPosition()
@@ -377,9 +398,9 @@ class Swerve(Subsystem):
     def periodic_other(self) -> None:
         # TODO: Has team 2429 vision support. Keep until we can use it
         # send our current time to the dashboard
-        ts = wpilib.Timer.getFPGATimestamp()
-        wpilib.SmartDashboard.putNumber('_timestamp',
-                                        ts)  # this one we actually do every time TODO - see if this is done by wpilib and use it instead
+        ts = Timer.getFPGATimestamp()
+        SmartDashboard.putNumber('_timestamp',
+                                 ts)  # this one we actually do every time TODO - see if this is done by wpilib and use it instead
 
         # use this if we have a phononvision camera - which we don't as of 20250316
         if self.vision_supported and RobotBase.isReal() and self.use_photoncam:  # sim complains if you don't set up a sim photoncam
@@ -407,11 +428,11 @@ class Swerve(Subsystem):
                     delta_pos = Translation2d.distance(self.get_pose().translation(),
                                                        cam_est_pose.estimatedPose.translation().toTranslation2d())
                     use_tag = False if (
-                            delta_pos > 1 and wpilib.DriverStation.isEnabled()) else use_tag  # no big movements in odometry from tags
+                            delta_pos > 1 and DriverStation.isEnabled()) else use_tag  # no big movements in odometry from tags
                     # limit a pose rotation to less than x degrees
                     delta_rot = math.fabs(
                         self.get_pose().rotation().degrees() - cam_est_pose.estimatedPose.rotation().angle_degrees)
-                    use_tag = False if delta_rot > 10 and wpilib.DriverStation.isEnabled() else use_tag
+                    use_tag = False if delta_rot > 10 and DriverStation.isEnabled() else use_tag
                     # TODO - ignore tags if we are moving too fast
                     use_tag = False if self.gyro.getRate() > 90 else use_tag  # no more than n degrees per second turning if using a tag
                     use_tag = False if latency > 100 else use_tag  # ignore stale tags
@@ -428,15 +449,15 @@ class Swerve(Subsystem):
                 pass
 
             if self.counter % 10 == 0 and self.use_photoncam:  # get diagnostics on photontags
-                wpilib.SmartDashboard.putBoolean('photoncam_targets_exist', has_photontag)
+                SmartDashboard.putBoolean('photoncam_targets_exist', has_photontag)
                 if has_photontag:
                     try:
                         ambiguity = self.photoncam_arducam_a.getLatestResult().getBestTarget().getPoseAmbiguity()
                     except AttributeError as e:
                         ambiguity = 998
-                    wpilib.SmartDashboard.putNumber('photoncam_ambiguity', ambiguity)
+                    SmartDashboard.putNumber('photoncam_ambiguity', ambiguity)
                 else:
-                    wpilib.SmartDashboard.putNumber('photoncam_ambiguity', 997)
+                    SmartDashboard.putNumber('photoncam_ambiguity', 997)
 
         if self.vision_supported and self.use_quest and self.quest_has_synched and self.counter % 5 == 0:
             # print('quest pose synced')
@@ -444,7 +465,7 @@ class Swerve(Subsystem):
             quest_pose = self.questnav.get_pose().transformBy(self.quest_to_robot)
             delta_pos = Translation2d.distance(self.get_pose().translation(), quest_pose.translation())
             if delta_pos < 5 and quest_accepted:  # if the quest is way off, we don't want to update from it
-                self.pose_estimator.addVisionMeasurement(quest_pose, wpilib.Timer.getFPGATimestamp(),
+                self.pose_estimator.addVisionMeasurement(quest_pose, Timer.getFPGATimestamp(),
                                                          constants.DrivetrainConstants.k_pose_stdevs_disabled)
 
         if self.vision_supported and self.use_CJH_apriltags:  # loop through all of our subscribers above
@@ -462,7 +483,7 @@ class Swerve(Subsystem):
                     # do not allow large jumps when enabled
                     delta_pos = Translation2d.distance(self.get_pose().translation(), tag_pose.translation())
                     # 20251018 commented out the 1m sanity check in case the questnav dies - this way we can get back
-                    # use_tag = False if (delta_pos > 1 and wpilib.DriverStation.isEnabled()) else use_tag  # no big movements in odometry from tags
+                    # use_tag = False if (delta_pos > 1 and DriverStation.isEnabled()) else use_tag  # no big movements in odometry from tags
                     use_tag = False if self.gyro.getRate() > 90 else use_tag  # no more than n degrees per second turning if using a tag
                     # use_tag = False if id not in self.desired_tags else use_tag
 
@@ -472,13 +493,13 @@ class Swerve(Subsystem):
                     # I gave a fairly high x and y, and a very high theta
                     if use_tag:
                         # print(f'adding vision measurement at {wpilib.getTime()}')
-                        sdevs = constants.DrivetrainConstants.k_pose_stdevs_large if wpilib.DriverStation.isEnabled() else constants.DrivetrainConstants.k_pose_stdevs_disabled
+                        sdevs = constants.DrivetrainConstants.k_pose_stdevs_large if DriverStation.isEnabled() else constants.DrivetrainConstants.k_pose_stdevs_disabled
                         self.pose_estimator.addVisionMeasurement(tag_pose, tag_data[0], sdevs)
 
         # Update the odometry in the periodic block -
         if self.vision_supported and RobotBase.isReal():
             # self.odometry.update(Rotation2d.fromDegrees(self.get_angle()), self.get_module_positions(),)
-            self.pose_estimator.updateWithTime(wpilib.Timer.getFPGATimestamp(),
+            self.pose_estimator.updateWithTime(Timer.getFPGATimestamp(),
                                                Rotation2d.fromDegrees(self.get_gyro_angle()),
                                                self.get_module_positions(), )
 
@@ -488,25 +509,25 @@ class Swerve(Subsystem):
 
         if self.vision_supported and self.counter % 10 == 0:
             pose = self.get_pose()  # self.odometry.getPose()
-            if True:  # wpilib.RobotBase.isReal():  # update the NT with odometry for the dashboard - sim will do its own
-                wpilib.SmartDashboard.putNumberArray('drive_pose', [pose.X(), pose.Y(), pose.rotation().degrees()])
-                wpilib.SmartDashboard.putNumber('drive_x', pose.X())
-                wpilib.SmartDashboard.putNumber('drive_y', pose.Y())
-                wpilib.SmartDashboard.putNumber('drive_theta', pose.rotation().degrees())
+            if True:  # RobotBase.isReal():  # update the NT with odometry for the dashboard - sim will do its own
+                SmartDashboard.putNumberArray('drive_pose', [pose.X(), pose.Y(), pose.rotation().degrees()])
+                SmartDashboard.putNumber('drive_x', pose.X())
+                SmartDashboard.putNumber('drive_y', pose.Y())
+                SmartDashboard.putNumber('drive_theta', pose.rotation().degrees())
 
-            wpilib.SmartDashboard.putNumber('_navx', self.get_angle())
-            wpilib.SmartDashboard.putNumber('_navx_yaw', self.get_yaw())
-            wpilib.SmartDashboard.putNumber('_navx_angle', self.get_gyro_angle())
+            SmartDashboard.putNumber('_navx', self.get_angle())
+            SmartDashboard.putNumber('_navx_yaw', self.get_yaw())
+            SmartDashboard.putNumber('_navx_angle', self.get_gyro_angle())
 
-            wpilib.SmartDashboard.putNumber('keep_angle', self.keep_angle)
-            # wpilib.SmartDashboard.putNumber('keep_angle_output', output)
+            SmartDashboard.putNumber('keep_angle', self.keep_angle)
+            # SmartDashboard.putNumber('keep_angle_output', output)
 
             # post yaw, pitch, roll so we can see what is going on with the climb
             ypr = [self.navx.getYaw(), self.get_pitch(), self.navx.getRoll(), self.navx.getRotation2d().degrees()]
-            wpilib.SmartDashboard.putNumberArray('_navx_YPR', ypr)
+            SmartDashboard.putNumberArray('_navx_YPR', ypr)
 
             # monitor power as well
-            if True:  # wpilib.RobotBase.isReal():
+            if True:  # RobotBase.isReal():
                 # there's some kind of voltage simulation but idk if this covers it
                 voltage = self.pdh.getVoltage()
                 total_current = self.pdh.getTotalCurrent()
@@ -516,17 +537,17 @@ class Swerve(Subsystem):
                     [math.fabs(module.drivingEncoder.getVelocity()) for module in self.swerve_modules])
                 voltage = 12.5 - 0.02 * total_current
 
-            wpilib.SmartDashboard.putNumber('_pdh_voltage', voltage)
-            wpilib.SmartDashboard.putNumber('_pdh_current', total_current)
+            SmartDashboard.putNumber('_pdh_voltage', voltage)
+            SmartDashboard.putNumber('_pdh_current', total_current)
 
             if constants.k_swerve_debugging_messages:  # this is just a bit much unless debugging the swerve
                 angles = [m.turningEncoder.getPosition() for m in self.swerve_modules]
                 absolutes = [m.get_turn_encoder() for m in self.swerve_modules]
                 for idx, absolute in enumerate(absolutes):
-                    wpilib.SmartDashboard.putNumber(f"absolute {idx}", absolute)
+                    SmartDashboard.putNumber(f"absolute {idx}", absolute)
 
-                wpilib.SmartDashboard.putNumberArray(f'_angles', angles)
-                # wpilib.SmartDashboard.putNumberArray(f'_analog_radians', absolutes)
+                SmartDashboard.putNumberArray(f'_angles', angles)
+                # SmartDashboard.putNumberArray(f'_analog_radians', absolutes)
 
         # Import pose from QuestNav.
         if self.vision_supported:
@@ -548,10 +569,10 @@ class Swerve(Subsystem):
         self.navx.zeroYaw()  # we boot up at zero degrees  - note - you can't reset this while calibrating
 
         if RobotBase.isSimulation():
-            navx = simulation.SimDeviceSim("navX-Sensor[4]")
+            navx = SimDeviceSim("navX-Sensor[4]")
             navx_yaw = navx.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
-            navx_angle = navx.getDouble("Angle")
-            navx_angle.set(0.0)
+            # navx_angle = navx.getDouble("Angle")
+            # navx_angle.set(0.0)
             navx_yaw.set(0.0)
 
     def resetSimPose(self, pose, wheel_positions, rotation):
@@ -646,7 +667,7 @@ class Swerve(Subsystem):
                 directionSlewRate = 500.0
                 # some high number that means the slew rate is effectively instantaneous
 
-            currentTime = wpilib.Timer.getFPGATimestamp()
+            currentTime = Timer.getFPGATimestamp()
             elapsedTime = currentTime - self.prevTime
             angleDif = swerveutils.angleDifference(inputTranslationDir, self.currentTranslationDir)
 
@@ -740,7 +761,7 @@ class Swerve(Subsystem):
 
         :returns: the robot's heading as Rotation2d
         """
-        now = wpilib.Timer.getFPGATimestamp()
+        now = Timer.getFPGATimestamp()
         past = self._lastGyroAngleTime
         state = "ok"
 
@@ -817,7 +838,7 @@ class Swerve(Subsystem):
             module.setDesiredState(state)
 
     def flip_path(self):  # pathplanner needs a function to see if it should mirror a path
-        if wpilib.DriverStation.getAlliance() == wpilib.DriverStation.Alliance.kBlue:
+        if DriverStation.getAlliance() == DriverStation.Alliance.kBlue:
             return False
         else:
             return True
@@ -876,7 +897,7 @@ class Swerve(Subsystem):
             output = output if math.fabs(output) < 0.2 else 0.2 * math.copysign(1, output)  # clamp at 0.2
 
         if self.counter % 20 == 0:
-            wpilib.SmartDashboard.putNumber('keep_angle_output', output)
+            SmartDashboard.putNumber('keep_angle_output', output)
 
         return output
 
@@ -1057,11 +1078,11 @@ class Swerve(Subsystem):
             SmartDashboard.putString("QUEST_POSE", str(quest_pose))
             SmartDashboard.putBoolean("QUEST_CONNECTED", self.questnav.is_connected())
             SmartDashboard.putBoolean("QUEST_TRACKING", self.questnav.is_tracking())
-            wpilib.SmartDashboard.putNumber("Quest_Battery_%", self.questnav.get_battery_percent())
-            wpilib.SmartDashboard.putNumber("Quest_Latency", self.questnav.get_latency())
-            wpilib.SmartDashboard.putNumber("Quest_Tracking_lost_count", self.questnav.get_tracking_lost_counter())
-            wpilib.SmartDashboard.putNumber("Quest_Latency", self.questnav.get_latency())
-            wpilib.SmartDashboard.putNumber("Quest_frame_count", self.questnav.get_frame_count())
+            SmartDashboard.putNumber("Quest_Battery_%", self.questnav.get_battery_percent())
+            SmartDashboard.putNumber("Quest_Latency", self.questnav.get_latency())
+            SmartDashboard.putNumber("Quest_Tracking_lost_count", self.questnav.get_tracking_lost_counter())
+            SmartDashboard.putNumber("Quest_Latency", self.questnav.get_latency())
+            SmartDashboard.putNumber("Quest_frame_count", self.questnav.get_frame_count())
 
     def reset_pose_with_quest(self, pose: Pose2d) -> None:
         # self.reset_pose(pose)
@@ -1081,20 +1102,20 @@ class Swerve(Subsystem):
             self.questnav.set_pose(
                 Pose2d(3.273, 4.020, Rotation2d.fromDegrees(180)).transformBy(self.quest_to_robot.inverse()))
             # print(self.questnav.get_pose())
-        print(f"Reset questnav at {wpilib.Timer.getFPGATimestamp():.1f}s")
+        print(f"Reset questnav at {Timer.getFPGATimestamp():.1f}s")
         self.quest_unsync_odometry()
 
     def quest_sync_odometry(self) -> None:
         # self.questnav.set_pose(self.get_pose())
         self.quest_has_synched = True  # let the robot know we have been synched so we don't automatically do it again
         self.questnav.set_pose(self.get_pose().transformBy(self.quest_to_robot.inverse()))
-        print(f'Synched quest at {wpilib.Timer.getFPGATimestamp():.1f}s')
+        print(f'Synched quest at {Timer.getFPGATimestamp():.1f}s')
         SmartDashboard.putBoolean('questnav_synched', self.quest_has_synched)
 
     def quest_unsync_odometry(self) -> None:
         # self.questnav.set_pose(self.get_pose())
         self.quest_has_synched = False  # let the robot know we have been synched so we don't automatically do it again
-        print(f'Unsynched quest at {wpilib.Timer.getFPGATimestamp():.1f}s')
+        print(f'Unsynched quest at {Timer.getFPGATimestamp():.1f}s')
         SmartDashboard.putBoolean('questnav_synched', self.quest_has_synched)
 
     def quest_enabled_toggle(self, force=None):  # allow us to stop using quest if it is a problem - 20251014 CJH
@@ -1107,7 +1128,7 @@ class Swerve(Subsystem):
         else:
             self.use_quest = False
 
-        print(f'swerve use_quest updated to {self.use_quest} at {wpilib.Timer.getFPGATimestamp():.1f}s')
+        print(f'swerve use_quest updated to {self.use_quest} at {Timer.getFPGATimestamp():.1f}s')
         SmartDashboard.putBoolean('questnav_in_use', self.use_quest)
 
     def quest_sync_toggle(self, force=None):  # toggle sync state for dashboard - 20251014 CJH

@@ -25,7 +25,7 @@ from commands2 import TimedCommandRobot, CommandScheduler
 from commands2.command import Command
 from phoenix6.hardware.talon_fx import TalonFX
 from rev import SparkFlex, SparkMax
-from wpilib import Timer, RobotBase, DriverStation
+from wpilib import Timer, RobotBase, DriverStation, Field2d, SmartDashboard
 
 from frc_2025 import constants
 from frc_2025.robotcontainer import RobotContainer
@@ -63,6 +63,10 @@ class MyRobot(TimedCommandRobot):
 
         self.holding_alge = False
         self.autonomousCommand = None
+        self.field: Optional[wpilib.Field2d] = None
+
+        # Visualization and pose support
+        self.match_started = False  # Set true on Autonomous or Teleop init
 
     @property
     def container(self) -> RobotContainer:
@@ -124,7 +128,12 @@ class MyRobot(TimedCommandRobot):
 
         version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
         logger.info(f"Python: {version}, Software Version: {VERSION}")
-        
+
+        # Set up our playing field. May get overwritten if simulation is running or if we
+        # support vision based odometry
+        self.field = Field2d()
+        SmartDashboard.putData("Field", self.field)
+
         # Instantiate our RobotContainer.  This will perform all our button bindings, and put our
         # autonomous chooser on the dashboard.
         self._container = RobotContainer(self)
@@ -177,6 +186,10 @@ class MyRobot(TimedCommandRobot):
             self.disabledTimer.stop()
             self.disabledTimer.reset()
 
+        # Validate who we are working for
+        if not self.match_started:
+            self.container.check_alliance()
+
     def disabledExit(self) -> None:
         """
         Exit code for disabled mode should go here.
@@ -197,10 +210,15 @@ class MyRobot(TimedCommandRobot):
         """
         self.container.set_start_time()
 
-        logger.info("*** called autonomousInit")
+        # Stop what we are doing...
         self.container.setMotorBrake(True)
 
-        self.autonomousCommand = None  # TODO:  self.container.getAutonomousCommand()
+        # Validate who we are working for. This may not be valid until autonomous or teleop init
+        if not self.match_started:
+            self.container.check_alliance()
+            self.match_started = True
+
+        self.autonomousCommand = self.container.getAutonomousCommand()
 
         if self.autonomousCommand:
             self.autonomousCommand.schedule()
@@ -213,7 +231,7 @@ class MyRobot(TimedCommandRobot):
         new packet is received from the driver station and the robot is in
         autonomous mode.
         """
-        logger.info("*** called autonomousPeriodic")
+        logger.debug("*** called autonomousPeriodic")
 
     def autonomousExit(self) -> None:
         """
@@ -238,10 +256,16 @@ class MyRobot(TimedCommandRobot):
 
         self.container.set_start_time()
 
+        # Stop what we are doing...
         if self.autonomousCommand:
             self.autonomousCommand.cancel()
         else:
             CommandScheduler.getInstance().cancelAll()
+
+        # Validate who we are working for. This may not be valid until autonomous or teleop init
+        if not self.match_started:
+            self.container.check_alliance()
+            self.match_started = True
 
     def teleopPeriodic(self) -> None:
         """
