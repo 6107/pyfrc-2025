@@ -34,7 +34,7 @@ import math
 from wpimath.geometry import Pose2d, Rotation2d
 from wpimath.units import inchesToMeters
 
-from utilities.game import field_flip_pose2d
+from lib_6107.util.game import field_flip_pose2d
 
 # Setup Logging
 logger = logging.getLogger(__name__)

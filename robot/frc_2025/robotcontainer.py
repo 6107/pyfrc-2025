@@ -178,6 +178,8 @@ class RobotContainer:
         """
         logger.debug("*** called configureButtonBindings")
 
+        # TODO: The java application had a different commands tied to default and the left/right
+        #       bumper (buttons) on the XBox.
         # TODO: Need to reconcile with java cade
         # # driveFieldOrientedDirectAngle      = robotDrive.driveFieldOriented(self.driveDirectAngle)
         # driveFieldOrientedAngularVelocity = self.robotDrive.driveFieldOriented(self.driveAngularVelocity)
