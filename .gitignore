@@ -227,3 +227,4 @@ __marimo__/
 
 # Project specific
 robot/*.json
+/robot/deploy/swerve/

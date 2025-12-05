@@ -19,14 +19,12 @@ import math
 from typing import Union
 
 import wpilib
+from frc_2025.subsystems.swervedrive.constants import ModuleConstants, getSwerveDrivingMotorConfig, \
+    getSwerveTurningMotorConfig, DriveConstants
 from rev import SparkMax, SparkFlex, SparkLowLevel, SparkBase
 from wpilib import AnalogPotentiometer, RobotBase
 from wpimath.geometry import Rotation2d
 from wpimath.kinematics import SwerveModuleState, SwerveModulePosition
-
-from frc_2025.subsystems.swervedrive.constants import ModuleConstants, getSwerveDrivingMotorConfig, \
-    getSwerveTurningMotorConfig
-from lib_6107.subsystems.swerve_constants import DriveConstants as sdc
 
 
 class MAXSwerveModule:
@@ -49,11 +47,6 @@ class MAXSwerveModule:
 
         self.drivingSparkMax = motorControllerType(drivingCANId, SparkLowLevel.MotorType.kBrushless)
         self.turningSparkMax = motorControllerType(turningCANId, SparkLowLevel.MotorType.kBrushless)
-
-        if RobotBase.isSimulation():  # check in sim to see if we are reacting to inputs
-            # TODO: Review team 2429 code and others to see how they setup SIM
-            self.dummy_motor_driving = wpilib.PWMSparkFlex(drivingCANId)
-            self.dummy_motor_turning = wpilib.PWMSparkFlex(turningCANId)
 
         # Factory reset, so we get the SPARKS MAX to a known state before configuring
         # them. This is useful in case a SPARK MAX is swapped out.
@@ -78,7 +71,7 @@ class MAXSwerveModule:
         # TODO: double check that the scale factor is the same on the new thrifty potentiometers
         if encoder_analog_port >= 0:
             self.absolute_encoder = AnalogPotentiometer(encoder_analog_port,
-                                                        sdc.k_analog_encoder_scale_factor * math.tau,
+                                                        DriveConstants.k_analog_encoder_scale_factor * math.tau,
                                                         -turning_encoder_offset)
         else:
             self.absolute_encoder = None
@@ -89,7 +82,7 @@ class MAXSwerveModule:
 
     def get_turn_encoder(self):
         # how we invert the absolute encoder if necessary (which it probably isn't in the standard mk4i config)
-        analog_reverse_multiplier = -1 if sdc.k_reverse_analog_encoders else 1
+        analog_reverse_multiplier = -1 if DriveConstants.k_reverse_analog_encoders else 1
         return analog_reverse_multiplier * self.absolute_encoder.get()
 
     def getState(self) -> SwerveModuleState:

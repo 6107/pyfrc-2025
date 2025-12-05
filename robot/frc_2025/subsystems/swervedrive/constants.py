@@ -66,16 +66,30 @@ class DriveConstants:
     kBackLeftChassisAngularOffset = math.pi
     kBackRightChassisAngularOffset = math.pi / 2
 
-    # SPARK MAX CAN IDs
-    kFrontLeftDrivingCanId = 1
-    kRearLeftDrivingCanId = 2
-    kFrontRightDrivingCanId = 3
-    kRearRightDrivingCanId = 4
+    # SPARK MAX Parmeters
+    kFrontLeftDrivingCanId = 22
+    kFrontLeftTurningCanId = 21
+    kFrontLeftAngularOffset = 156.445
+    kFrontLeftDriveMotorInverted = False
+    kFrontLeftTurningMotorInverted = False
 
-    kFrontLeftTurningCanId = 5
-    kRearLeftTurningCanId = 6
-    kFrontRightTurningCanId = 7
-    kRearRightTurningCanId = 8
+    kFrontRightDrivingCanId = 24
+    kFrontRightTurningCanId = 23
+    kFrontRightAngularOffset = 30.498
+    kFrontRightDriveMotorInverted = False
+    kFrontRightTurningMotorInverted = False
+
+    kRearLeftDrivingCanId = 26
+    kRearLeftTurningCanId = 25
+    kRearLeftAngularOffset = 133.418
+    kRearLeftDriveMotorInverted = False
+    kRearLeftTurningMotorInverted = False
+
+    kRearRightDrivingCanId = 28
+    kRearRightTurningCanId = 27
+    kRearRightAngularOffset = 99.404
+    kRearRightDriveMotorInverted = False
+    kRearRightTurningMotorInverted = False
 
     kGyroReversed = -1  # can be +1 if not flipped (affects field-relative driving)
 
@@ -116,7 +130,7 @@ class ModuleConstants:
     #  - one or both of two constants below need to be flipped from True to False (by trial and error)
     #  , depending which swerve module you have (MK4i, MK4n, Rev, WCP, ThriftyBot, etc)
     kTurningEncoderInverted = False
-    kTurningMotorInverted = True
+    kTurningMotorInverted = False
 
     # The MAXSwerve module can be configured with one of three pinion gears: 12T, 13T, or 14T.
     # This changes the drive speed of the module (a pinion gear with more teeth will result in a

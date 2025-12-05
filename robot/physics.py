@@ -34,7 +34,7 @@ from pyfrc.physics.core import PhysicsInterface
 from wpimath.kinematics._kinematics import SwerveDrive4Kinematics, SwerveModulePosition
 
 from frc_2025.reefscape import *
-from lib_6107.subsystems.swerve_constants import DriveConstants
+from frc_2025.subsystems.swervedrive.constants import DriveConstants
 from robot import MyRobot
 
 logger = logging.getLogger(__name__)

@@ -23,7 +23,14 @@ import navx
 import ntcore
 import robotpy_apriltag as apriltag
 from commands2 import Subsystem, TimedCommandRobot, InstantCommand
-from rev import SparkFlex
+from frc_2025.reefscape import RED_TEST_POSE, BLUE_TEST_POSE
+from frc_2025.subsystems import constants
+from frc_2025.subsystems.swervedrive import swerveutils
+from frc_2025.subsystems.swervedrive.constants import DriveConstants, ModuleConstants
+from frc_2025.subsystems.swervedrive.maxswervemodule import MAXSwerveModule
+from pathplannerlib.auto import AutoBuilder
+from pathplannerlib.config import RobotConfig
+from rev import SparkMax
 from wpilib import SmartDashboard, Field2d, RobotBase, Timer
 from wpilib.simulation import SimDeviceSim
 from wpimath.controller import PIDController
@@ -32,15 +39,6 @@ from wpimath.filter import SlewRateLimiter
 from wpimath.geometry import Transform2d, Transform3d, Translation3d, Rotation3d, \
     Pose3d, Rotation2d, Translation2d, Pose2d
 from wpimath.kinematics import ChassisSpeeds, SwerveModuleState, SwerveDrive4Kinematics, SwerveDrive4Odometry
-
-from frc_2025.reefscape import RED_TEST_POSE, BLUE_TEST_POSE
-from frc_2025.subsystems import constants
-from frc_2025.subsystems.swervedrive import swerveutils
-from frc_2025.subsystems.swervedrive.constants import DriveConstants, ModuleConstants
-from frc_2025.subsystems.swervedrive.maxswervemodule import MAXSwerveModule
-from lib_6107.subsystems.swerve_constants import DriveConstants as sdc
-from pathplannerlib.auto import AutoBuilder
-from pathplannerlib.config import RobotConfig
 
 GYRO_OVERSHOOT_FRACTION = -3.25 / 360
 # ^^ our gyro didn't overshoot, it "undershot" by 0.1 degrees in a 360 degree turn
@@ -73,9 +71,10 @@ class DriveSubsystem(Subsystem):
         self.frontLeft = MAXSwerveModule(
             DriveConstants.kFrontLeftDrivingCanId,
             DriveConstants.kFrontLeftTurningCanId,
-            DriveConstants.kFrontLeftChassisAngularOffset * enabledChassisAngularOffset,
-            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
-            motorControllerType=SparkFlex,
+            DriveConstants.kFrontLeftAngularOffset,
+            driveMotorInverted=DriveConstants.kFrontLeftDriveMotorInverted,
+            turnMotorInverted=DriveConstants.kFrontLeftTurningMotorInverted,
+            motorControllerType=SparkMax,
             label="lf"
         )
 
@@ -83,26 +82,29 @@ class DriveSubsystem(Subsystem):
             DriveConstants.kFrontRightDrivingCanId,
             DriveConstants.kFrontRightTurningCanId,
             DriveConstants.kFrontRightChassisAngularOffset * enabledChassisAngularOffset,
-            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
-            motorControllerType=SparkFlex,
+            driveMotorInverted=DriveConstants.kFrontRightDriveMotorInverted,
+            turnMotorInverted=DriveConstants.kFrontRightTurningMotorInverted,
+            motorControllerType=SparkMax,
             label="rf"
         )
 
         self.rearLeft = MAXSwerveModule(
             DriveConstants.kRearLeftDrivingCanId,
             DriveConstants.kRearLeftTurningCanId,
-            DriveConstants.kBackLeftChassisAngularOffset * enabledChassisAngularOffset,
-            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
-            motorControllerType=SparkFlex,
+            DriveConstants.kRearLeftAngularOffset,
+            driveMotorInverted=DriveConstants.kRearLeftDriveMotorInverted,
+            turnMotorInverted=DriveConstants.kRearLeftTurningMotorInverted,
+            motorControllerType=SparkMax,
             label="lb"
         )
 
         self.rearRight = MAXSwerveModule(
             DriveConstants.kRearRightDrivingCanId,
             DriveConstants.kRearRightTurningCanId,
-            DriveConstants.kBackRightChassisAngularOffset * enabledChassisAngularOffset,
-            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
-            motorControllerType=SparkFlex,
+            DriveConstants.kRearRightAngularOffset,
+            driveMotorInverted=DriveConstants.kRearRightDriveMotorInverted,
+            turnMotorInverted=DriveConstants.kRearRightTurningMotorInverted,
+            motorControllerType=SparkMax,
             label="rb"
         )
         self.swerve_modules: List[MAXSwerveModule] = [self.frontLeft, self.frontRight, self.rearLeft, self.rearRight]
@@ -130,9 +132,9 @@ class DriveSubsystem(Subsystem):
         self.last_drive_time = 0
         self.time_since_drive = 0
 
-        self.fwd_magLimiter = SlewRateLimiter(0.9 * sdc.kMagnitudeSlewRate)
-        self.strafe_magLimiter = SlewRateLimiter(sdc.kMagnitudeSlewRate)
-        self.rotLimiter = SlewRateLimiter(sdc.kRotationalSlewRate)
+        self.fwd_magLimiter = SlewRateLimiter(0.9 * DriveConstants.kMagnitudeSlewRate)
+        self.strafe_magLimiter = SlewRateLimiter(DriveConstants.kMagnitudeSlewRate)
+        self.rotLimiter = SlewRateLimiter(DriveConstants.kRotationalSlewRate)
 
         # TODO: original gyro attributes below
         self._lastGyroAngleTime = 0
@@ -195,7 +197,7 @@ class DriveSubsystem(Subsystem):
                              constants.k_start_y,
                              Rotation2d.fromDegrees(self.get_gyro_angle()))
 
-        self.pose_estimator = SwerveDrive4PoseEstimator(sdc.kDriveKinematics,
+        self.pose_estimator = SwerveDrive4PoseEstimator(DriveConstants.kDriveKinematics,
                                                         Rotation2d.fromDegrees(self.get_gyro_angle()),
                                                         self.get_module_positions(),
                                                         initialPose=initialPose)
@@ -815,8 +817,8 @@ class DriveSubsystem(Subsystem):
 
     def get_gyro_angle(self):  # if necessary reverse the heading for swerve math
         # note this does add in the current offset
-        # print(f"get_gyro_angle is returning {-self.gyro.getAngle() if sdc.kGyroReversed else self.gyro.getAngle()}")
-        return -self.gyro.getAngle() if sdc.kGyroReversed else self.gyro.getAngle()
+        # print(f"get_gyro_angle is returning {-self.gyro.getAngle() if DriveConstants.kGyroReversed else self.gyro.getAngle()}")
+        return -self.gyro.getAngle() if DriveConstants.kGyroReversed else self.gyro.getAngle()
 
     ##########################################################
     # TODO: All the following are related to team 2429 and pathplanner. These have not been tested and
@@ -825,7 +827,7 @@ class DriveSubsystem(Subsystem):
     #  -------------  THINGS PATHPLANNER NEEDS  - added for pathplanner 20230218 CJH
     def get_relative_speeds(self):
         # added for pathplanner 20230218 CJH
-        return sdc.kDriveKinematics.toChassisSpeeds(self.get_module_states())
+        return DriveConstants.kDriveKinematics.toChassisSpeeds(self.get_module_states())
 
     def drive_robot_relative(self, chassis_speeds: ChassisSpeeds, feedforwards):
         """c
@@ -833,8 +835,9 @@ class DriveSubsystem(Subsystem):
         """
         # required for the pathplanner lib's pathfollowing based on chassis speeds
         # idk if we need the feedforwards
-        swerveModuleStates = sdc.kDriveKinematics.toSwerveModuleStates(chassis_speeds)
-        swerveModuleStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(swerveModuleStates, sdc.kMaxTotalSpeed)
+        swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(chassis_speeds)
+        swerveModuleStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(swerveModuleStates,
+                                                                          DriveConstants.kMaxTotalSpeed)
         for state, module in zip(swerveModuleStates, self.swerve_modules):
             module.setDesiredState(state)
 
@@ -879,9 +882,9 @@ class DriveSubsystem(Subsystem):
     def perform_keep_angle(self, xSpeed, ySpeed,
                            rot):  # update rotation if we are drifting when trying to drive straight
         output = rot  # by default we will return rot unless it needs to be changed
-        if math.fabs(rot) > sdc.k_inner_deadband:  # we are actually intending to rotate
+        if math.fabs(rot) > DriveConstants.k_inner_deadband:  # we are actually intending to rotate
             self.last_rotation_time = self.keep_angle_timer.get()
-        if math.fabs(xSpeed) > sdc.k_inner_deadband or math.fabs(ySpeed) > sdc.k_inner_deadband:
+        if math.fabs(xSpeed) > DriveConstants.k_inner_deadband or math.fabs(ySpeed) > DriveConstants.k_inner_deadband:
             self.last_drive_time = self.keep_angle_timer.get()
 
         self.time_since_rotation = self.keep_angle_timer.get() - self.last_rotation_time
@@ -890,7 +893,7 @@ class DriveSubsystem(Subsystem):
         if self.time_since_rotation < 0.5:  # (update keep_angle until 0.5s after rotate command stops to allow rotate to finish)
             self.keep_angle = self.get_angle()  # todo: double check SIGN (and units are in degrees)
         elif math.fabs(
-                rot) < sdc.k_inner_deadband and self.time_since_drive < 0.25:  # stop keep_angle .25s after you stop driving
+                rot) < DriveConstants.k_inner_deadband and self.time_since_drive < 0.25:  # stop keep_angle .25s after you stop driving
             # output = self.keep_angle_pid.calculate(-self.get_angle(), self.keep_angle)  # 2023
             # TODO: figure out if we want YAW or ANGLE, and WHY NOT BE CONSISTENT WITH YAW AND ANGLE?
             output = self.keep_angle_pid.calculate(self.get_angle(),
@@ -919,7 +922,7 @@ class DriveSubsystem(Subsystem):
         """Sets the swerve ModuleStates.
         :param desiredStates: The desired SwerveModule states.
         """
-        desiredStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(desiredStates, sdc.kMaxTotalSpeed)
+        desiredStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(desiredStates, DriveConstants.kMaxTotalSpeed)
         for idx, m in enumerate(self.swerve_modules):
             m.setDesiredState(desiredStates[idx])
 
@@ -959,7 +962,7 @@ class DriveSubsystem(Subsystem):
         """Returns the turn rate of the robot.
         :returns: The turn rate of the robot, in degrees per second
         """
-        return self.gyro.getRate() * (-1.0 if sdc.kGyroReversed else 1.0)
+        return self.gyro.getRate() * (-1.0 if DriveConstants.kGyroReversed else 1.0)
 
     def get_module_positions(self):
         """ CJH-added helper function to clean up some calls above"""
@@ -976,8 +979,8 @@ class DriveSubsystem(Subsystem):
 
     def get_gyro_angle(self):  # if necessary reverse the heading for swerve math
         # note this does add in the current offset
-        # print(f"get_gyro_angle is returning {-self.gyro.getAngle() if sdc.kGyroReversed else self.gyro.getAngle()}")
-        return -self.gyro.getAngle() if sdc.kGyroReversed else self.gyro.getAngle()
+        # print(f"get_gyro_angle is returning {-self.gyro.getAngle() if DriveConstants.kGyroReversed else self.gyro.getAngle()}")
+        return -self.gyro.getAngle() if DriveConstants.kGyroReversed else self.gyro.getAngle()
 
     def get_angle(self):  # if necessary reverse the heading for swerve math
         # used to be get_gyro_angle but LHACK changed it 12/24/24 so we don't have to manually reset gyro anymore
@@ -987,7 +990,7 @@ class DriveSubsystem(Subsystem):
         # but you should probably never use this - just use get_angle to be consistent
         # because yaw does NOT return the offset that get_Angle does
         # return self.gyro.getYaw()
-        return -self.gyro.getYaw() if sdc.kGyroReversed else self.gyro.getYaw()  # 2024 possible update
+        return -self.gyro.getYaw() if DriveConstants.kGyroReversed else self.gyro.getYaw()  # 2024 possible update
 
     def get_pitch(self):  # need to calibrate the navx, apparently
         pitch_offset = 0
