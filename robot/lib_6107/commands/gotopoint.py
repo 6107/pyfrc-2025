@@ -21,8 +21,6 @@
 # the WPILib BSD license file in the root directory of this project.
 #
 
-from __future__ import annotations
-
 import math
 
 import commands2
