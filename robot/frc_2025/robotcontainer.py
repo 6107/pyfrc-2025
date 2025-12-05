@@ -16,6 +16,7 @@
 # ------------------------------------------------------------------------ #
 
 import logging
+import platform
 import time
 from typing import List, Optional, Callable
 
@@ -96,12 +97,19 @@ class RobotContainer:
         # Configure default command for driving using joystick sticks
         field_relative = self.robot_drive.field_relative
 
+        # MacOS fixup
+        rightAxisX = XboxController.Axis.kRightX
+
+        if platform.system().lower() == "darwin":
+            hid_axis = self.driver_controller.getHID().Axis
+            if hid_axis.kRightX != 2:
+                rightAxisX = XboxController.Axis.kLeftTrigger
+
         drive_cmd = HolonomicDrive(self,
                                    self.robotDrive,
                                    forwardSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftY),
                                    leftSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftX),
-                                   rotationSpeed=lambda: -self.driver_controller.getRawAxis(
-                                       XboxController.Axis.kRightX),
+                                   rotationSpeed=lambda: -self.driver_controller.getRawAxis(rightAxisX),
                                    deadband=OIConstants.kDriveDeadband,
                                    field_relative=field_relative,
                                    rateLimit=True,
