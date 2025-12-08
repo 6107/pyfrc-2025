@@ -32,7 +32,7 @@ class HolonomicDrive(commands2.Command):
     """
 
     def __init__(self, robot_container, drivetrain, forwardSpeed, leftSpeed, rotationSpeed, deadband=0,
-                 field_relative: Optional[bool] = False, rateLimit: bool = False, square: bool = False):
+                 field_relative: Optional[bool] = True, rateLimit: bool = False, square: bool = False):
         """
         Drive the robot at `driveSpeed` and `rotationSpeed` until this command is terminated.
         """
@@ -75,7 +75,7 @@ class HolonomicDrive(commands2.Command):
         left_speed = self.leftSpeed()
         rotation_speed = self.rotationSpeed()
 
-        flipped = not self.field_relative and self.container.is_red_alliance
+        flipped = self.field_relative and self.container.is_red_alliance
         if flipped:
             forward_speed, left_speed = -forward_speed, -left_speed
 

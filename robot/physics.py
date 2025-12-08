@@ -106,9 +106,9 @@ class PhysicsEngine:
         # self.ledsim = simlib.AddressableLEDSim()
 
         # NavX (SPI interface)
-        self._navx = simlib.SimDeviceSim("navX-Sensor[4]")
-        self._navx_yaw = self._navx.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
-        self._navx_angle = self._navx.getDouble("Angle")
+        # self._navx = simlib.SimDeviceSim("navX-Sensor[4]")
+        # self._navx_yaw = self._navx.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
+        # self._navx_angle = self._navx.getDouble("Angle")
 
         # self._navx_angle.set(self._physics_controller.get_pose().rotation().degrees())
 
@@ -185,13 +185,13 @@ class PhysicsEngine:
 
         self._drivetrain.resetSimPose(new_pose, [SwerveModulePosition()] * 4,
                                       self._physics_controller.get_pose().rotation())
-        previous = self._navx_yaw.get()
-        omega = speeds.omega
-        degrees = math.degrees(speeds.omega * tm_diff)
-        new = self._navx_yaw.get() - math.degrees(speeds.omega * tm_diff)
+        # previous = self._navx_yaw.get()
+        # omega = speeds.omega
+        # degrees = math.degrees(speeds.omega * tm_diff)
+        # new = self._navx_yaw.get() - math.degrees(speeds.omega * tm_diff)
 
-        if log_it:
-            logger.debug(f"Update swerve: previous: {previous}, new: {new}, omega: {omega}, degrees: {degrees}")
+        # if log_it:
+        #     logger.debug(f"Update swerve: previous: {previous}, new: {new}, omega: {omega}, degrees: {degrees}")
 
         #  self._navx_yaw.set(self._navx_yaw.get() - math.degrees(speeds.omega * tm_diff))
-        self._navx_yaw.set(-pose.rotation().degrees())
+        # self._navx_yaw.set(-pose.rotation().degrees())

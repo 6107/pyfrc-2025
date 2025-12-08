@@ -24,10 +24,9 @@ import math
 import typing
 
 import commands2
+from frc_2025.subsystems.swervedrive.constants import AutoConstants
 from wpilib import SmartDashboard
 from wpimath.geometry import Rotation2d
-
-from frc_2025.subsystems.swervedrive.constants import AutoConstants
 
 
 class AimToDirectionConstants:
@@ -101,9 +100,10 @@ class AimToDirection(commands2.Command):
         currentDirection = self.drivetrain.getHeading()
         rotationRemaining = self.targetDirection - currentDirection
         degreesRemaining = rotationRemaining.degrees()
+
         # if we are pretty close to the direction we wanted, consider the command finished
         if abs(degreesRemaining) < AimToDirectionConstants.kAngleToleranceDegrees:
-            turnVelocity = self.drivetrain.getTurnRate()
+            turnVelocity = self.drivetrain.getTurnRateDegreesPerSec()
             SmartDashboard.putString("command/c" + self.__class__.__name__, "good angle")
             if abs(turnVelocity) < AimToDirectionConstants.kAngleVelocityToleranceDegreesPerSec:
                 SmartDashboard.putString("command/c" + self.__class__.__name__, "completed")

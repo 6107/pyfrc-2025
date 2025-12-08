@@ -31,7 +31,7 @@ from frc_2025.subsystems.swervedrive.maxswervemodule import MAXSwerveModule
 from pathplannerlib.auto import AutoBuilder
 from pathplannerlib.config import RobotConfig
 from rev import SparkMax
-from wpilib import SmartDashboard, Field2d, RobotBase, Timer
+from wpilib import SmartDashboard, Field2d, RobotBase, Timer, DriverStation
 from wpilib.simulation import SimDeviceSim
 from wpimath.controller import PIDController
 from wpimath.estimator import SwerveDrive4PoseEstimator
@@ -39,7 +39,61 @@ from wpimath.filter import SlewRateLimiter
 from wpimath.geometry import Transform2d, Transform3d, Translation3d, Rotation3d, \
     Pose3d, Rotation2d, Translation2d, Pose2d
 from wpimath.kinematics import ChassisSpeeds, SwerveModuleState, SwerveDrive4Kinematics, SwerveDrive4Odometry
+from wpimath.units import degrees, degrees_per_second, radians_per_second
 
+# TODO: This value needs to be tested. Perform the following on a real robot
+#
+# Measuring Overshoot
+# Implement a Control Loop:
+#   You cannot simply apply constant power until the target angle is reached, as the robot needs time to decelerate
+#   and will inevitably overshoot. A simple Proportional (P) loop is the standard starting point for FRC teams.
+#   The motor power is made proportional to the difference between the target angle and the current angle.
+#
+#      Formula (simplified P-loop): motorPower = (targetAngle - currentAngle) * kP
+#      kP is a constant you tune to get the desired performance.
+#
+# Log Data:
+#   Use your FRC development environment (e.g., WPILib) to log the robot's current gyro angle and the target
+#   angle to a file or SmartDashboard/Shuffleboard.
+#
+# Perform a Test Turn:
+#   Command your robot to turn to a specific, significant angle (e.g., 90 degrees) using the P-loop,
+#   and log the data during the process.
+#
+# Analyze the Data:
+#   After the test, view the logged data in a graph or spreadsheet.
+# Target Angle:
+#   The desired final angle (e.g., 90 degrees).
+#
+# Peak Angle:
+#   The maximum angle the robot reaches during the turn before it starts correcting back towards the target.
+#
+# Calculate Overshoot:
+#   The difference between the peak angle and the target angle is the overshoot.
+#
+# Overshoot = Peak Angle - Target Angle
+#
+# Correcting Overshoot
+#
+# The primary method for reducing overshoot is tuning your control loop.
+#
+# Adjust kP:
+#   If your robot consistently overshoots significantly, your kP value is likely too high. Lowering it
+#   will make the turn slower but more accurate.
+#
+# Add Derivative (D) control:
+#   Implementing a full PID loop can help. The derivative term (kD) dampens the system by applying a
+#   counter-force based on how fast the error is changing (i.e., the robot's turn rate), which helps
+#   slow the robot down as it approaches the target.
+#
+# Slow Down Turns:
+#   As a simple fix, reducing the maximum motor power or speed used for turns will also reduce overshoot,
+#   though it makes the robot slower overall.
+#
+# Ensure Proper Calibration:
+#   Make sure the gyro is stationary during its initial calibration phase (when the robot code starts)
+#   to minimize drift and baseline errors.
+#
 GYRO_OVERSHOOT_FRACTION = -3.25 / 360
 # ^^ our gyro didn't overshoot, it "undershot" by 0.1 degrees in a 360 degree turn
 
@@ -57,7 +111,7 @@ class DriveSubsystem(Subsystem):
 
         self._robot = robot
         self.vision_supported = constants.k_use_vision_odometry
-        self.field_relative = False
+        self.field_relative = True
 
         self.maxSpeedScaleFactor: Optional[Callable[[None], float]] = maxSpeedScaleFactor
 
@@ -159,6 +213,9 @@ class DriveSubsystem(Subsystem):
         self.inst = None
 
         if not self.vision_supported or RobotBase.isSimulation():
+            # The robots movements are commanded based on the fixed coordinate system of the competition field
+            self.field_relative = True
+
             # Odometry class for tracking robot pose
             self.odometry = SwerveDrive4Odometry(DriveConstants.kDriveKinematics,
                                                  Rotation2d(),
@@ -166,7 +223,6 @@ class DriveSubsystem(Subsystem):
                                                   self.frontRight.getPosition(),
                                                   self.rearLeft.getPosition(),
                                                   self.rearRight.getPosition()))
-            self.field_relative = False
             self.odometryHeadingOffset = Rotation2d(0)
 
             # Register for any changes in alliance before the match starts
@@ -174,7 +230,8 @@ class DriveSubsystem(Subsystem):
             self._alliance_change(container.is_red_alliance)
 
         else:
-            self.field_relative = True
+            # The robots movements are commanded based on the robot's own orientation
+            self.field_relative = False
             self._init_vision_odometry()
             # self.field = self.quest_field
             self._robot.field = self.quest_field
@@ -776,7 +833,7 @@ class DriveSubsystem(Subsystem):
                 notCalibrating = False
                 state = "calibrating"
 
-            gyroAngle = self.gyro.getAngle()
+            gyroAngle = self.get_raw_angle()
 
             # correct for gyro drift
             if self.gyroOvershootFraction != 0.0 and self._lastGyroAngle != 0 and notCalibrating:
@@ -799,33 +856,32 @@ class DriveSubsystem(Subsystem):
             SmartDashboard.putString("gyro", f"{state} after {int(now - past)}s")
             self._lastGyroState = state
 
-        return Rotation2d.fromDegrees(self._lastGyroAngle * DriveConstants.kGyroReversed)
+        last_angle = -self._lastGyroAngle if DriveConstants.kGyroReversed else self._lastGyroAngle
 
-    def getTurnRate(self) -> float:
-        """Returns the turn rate of the robot (in radians per second)
+        if self.counter % 50 == 0:
+            print(f"Gyro: angle: {last_angle:.2f}")
 
-        :returns: The turn rate of the robot, in radians per second
+        return Rotation2d.fromDegrees(last_angle)
+
+    def getTurnRate(self) -> radians_per_second:
         """
-        return self.gyro.getRate() * DriveConstants.kGyroReversed
-
-    def getTurnRateDegreesPerSec(self) -> float:
-        """Returns the turn rate of the robot (in degrees per second)
-
-        :returns: The turn rate of the robot, in degrees per second
+        Returns the turn rate of the robot (in radians per second)
         """
-        return self.getTurnRate() * 180 / math.pi
+        return self.getTurnRate() * math.pi / 180
 
-    def get_gyro_angle(self):  # if necessary reverse the heading for swerve math
-        # note this does add in the current offset
-        # print(f"get_gyro_angle is returning {-self.gyro.getAngle() if DriveConstants.kGyroReversed else self.gyro.getAngle()}")
-        return -self.gyro.getAngle() if DriveConstants.kGyroReversed else self.gyro.getAngle()
+    def getTurnRateDegreesPerSec(self) -> degrees_per_second:
+        """
+        Returns the turn rate of the robot (in degrees per second)
+        """
+        rate = self.gyro.getRate()
+        return -rate if DriveConstants.kGyroReversed else rate
 
     ##########################################################
     # TODO: All the following are related to team 2429 and pathplanner. These have not been tested and
     #       we may need to refactor the 'drive()' method above
 
     #  -------------  THINGS PATHPLANNER NEEDS  - added for pathplanner 20230218 CJH
-    def get_relative_speeds(self):
+    def get_relative_speeds(self) -> ChassisSpeeds:
         # added for pathplanner 20230218 CJH
         return DriveConstants.kDriveKinematics.toChassisSpeeds(self.get_module_states())
 
@@ -833,7 +889,7 @@ class DriveSubsystem(Subsystem):
         """c
         feedforwards isn't used at all so pass it whatever
         """
-        # required for the pathplanner lib's pathfollowing based on chassis speeds
+        # required for the pathplanner lib's path following based on chassis speeds
         # idk if we need the feedforwards
         swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(chassis_speeds)
         swerveModuleStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(swerveModuleStates,
@@ -868,7 +924,7 @@ class DriveSubsystem(Subsystem):
 
     # -------------- END PATHPLANNER STUFF
 
-    def reset_keep_angle(self):
+    def reset_keep_angle(self) -> None:
         """
         perhaps deprecated because we want to use resetOdometry to reset the gyro
         """
@@ -912,7 +968,7 @@ class DriveSubsystem(Subsystem):
         for angle, swerve_module in zip(angles, self.swerve_modules):
             swerve_module.setDesiredState(SwerveModuleState(0, Rotation2d.fromDegrees(angle)))
 
-    def set_straight(self):
+    def set_straight(self) -> None:
         """Sets the wheels straight so we can push the robot."""
         angles = [0, 0, 0, 0]
         for angle, swerve_module in zip(angles, self.swerve_modules):
@@ -939,10 +995,10 @@ class DriveSubsystem(Subsystem):
 
     zeroGyro = zeroHeading  # Alias
 
-    def lock(self):
+    def lock(self) -> None:
         print("What does: swerveDrive.lockPose() do")
 
-    def resetGyroToInitial(self):
+    def resetGyroToInitial(self) -> None:
         print(""" What does this do
         {
             zeroGyro();
@@ -958,12 +1014,6 @@ class DriveSubsystem(Subsystem):
             for motor in (self.rearLeft, self.rearRight, self.frontLeft, self.frontRight):
                 motor.stop()
 
-    def getTurnRate(self) -> float:
-        """Returns the turn rate of the robot.
-        :returns: The turn rate of the robot, in degrees per second
-        """
-        return self.gyro.getRate() * (-1.0 if DriveConstants.kGyroReversed else 1.0)
-
     def get_module_positions(self):
         """ CJH-added helper function to clean up some calls above"""
         # note lots of the calls want tuples, so _could_ convert if we really want to
@@ -974,33 +1024,34 @@ class DriveSubsystem(Subsystem):
         # note lots of the calls want tuples, so _could_ convert if we really want to
         return [m.getState() for m in self.swerve_modules]
 
-    def get_raw_angle(self):  # never reversed value for using PIDs on the heading
+    def get_raw_angle(self) -> degrees:  # never reversed value for using PIDs on the heading
         return self.gyro.getAngle()
 
-    def get_gyro_angle(self):  # if necessary reverse the heading for swerve math
+    def get_gyro_angle(self) -> degrees:  # if necessary reverse the heading for swerve math
         # note this does add in the current offset
-        # print(f"get_gyro_angle is returning {-self.gyro.getAngle() if DriveConstants.kGyroReversed else self.gyro.getAngle()}")
-        return -self.gyro.getAngle() if DriveConstants.kGyroReversed else self.gyro.getAngle()
+        angle = self.gyro.getAngle()
+        return -angle if DriveConstants.kGyroReversed else angle
 
-    def get_angle(self):  # if necessary reverse the heading for swerve math
-        # used to be get_gyro_angle but LHACK changed it 12/24/24 so we don't have to manually reset gyro anymore
+    def get_angle(self) -> degrees:
         return self.get_pose().rotation().degrees()
 
-    def get_yaw(self):  # helpful for determining nearest heading parallel to the wall
+    def get_yaw(self) -> degrees:  # helpful for determining nearest heading parallel to the wall
         # but you should probably never use this - just use get_angle to be consistent
         # because yaw does NOT return the offset that get_Angle does
         # return self.gyro.getYaw()
-        return -self.gyro.getYaw() if DriveConstants.kGyroReversed else self.gyro.getYaw()  # 2024 possible update
+        yaw = self.gyro.getYaw()
 
-    def get_pitch(self):  # need to calibrate the navx, apparently
+        return -yaw if DriveConstants.kGyroReversed else yaw
+
+    def get_pitch(self) -> degrees:  # need to calibrate the navx, apparently
         pitch_offset = 0
         return self.gyro.getPitch() - pitch_offset
 
-    def get_roll(self):  # need to calibrate the navx, apparently
+    def get_roll(self) -> degrees:  # need to calibrate the navx, apparently
         roll_offset = 0
         return self.gyro.getRoll() - roll_offset
 
-    def reset_gyro(self, adjustment=None):  # use this from now on whenever we reset the gyro
+    def reset_gyro(self, adjustment=None) -> None:  # use this from now on whenever we reset the gyro
         """
         perhaps deprecated because we want to use resetOdometry to reset the gyro 1/12/25 LHACK
         """

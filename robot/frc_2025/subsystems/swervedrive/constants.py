@@ -38,15 +38,16 @@ class DriveConstants:
     # the robot, rather the allowed maximum speeds
     kMaxSpeedMetersPerSecond = 4.8
     kMaxAngularSpeed = 2 * math.tau  # radians per second
+    kMaxTotalSpeed = 1.1 * math.sqrt(2) * kMaxSpeedMetersPerSecond
 
     kDirectionSlewRate = 1.2  # radians per second
     kMagnitudeSlewRate = 1.8  # percent per second (1 = 100%)
     kRotationalSlewRate = 2.0  # percent per second (1 = 100%)
 
     # Chassis configuration
-    kTrackWidth = units.inchesToMeters(26.5)
+    kTrackWidth = units.inchesToMeters(8.75 + 8.75)  # From YAGSL JSON offsets
     # Distance between centers of right and left wheels on robot
-    kWheelBase = units.inchesToMeters(26.5)
+    kWheelBase = units.inchesToMeters(8.75 + 8.75)  # From YAGSL JSON offsets
 
     # Distance between front and back wheels on robot
     kModulePositions = [
@@ -91,8 +92,8 @@ class DriveConstants:
     kRearRightDriveMotorInverted = False
     kRearRightTurningMotorInverted = False
 
-    kGyroReversed = -1  # can be +1 if not flipped (affects field-relative driving)
-
+    kGyroReversed = False  # (affects field-relative driving)
+    kGyroDeviceId = 35
 
 def getSwerveDrivingMotorConfig(driveMotorInverted: bool) -> SparkBaseConfig:
     drivingConfig = SparkBaseConfig()
