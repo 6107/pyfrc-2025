@@ -97,8 +97,9 @@ class DriveConstants:
 
     GYRO_TYPE_NAVX = "navx"
     GYRO_TYPE_PIGEON2 = "pigeon2"
-    GYRO_TYPE = GYRO_TYPE_NAVX
-    # GYRO_TYPE = GYRO_TYPE_PIGEON2
+
+    # GYRO_TYPE = GYRO_TYPE_NAVX        # pick only one Gyro/IMU type
+    GYRO_TYPE = GYRO_TYPE_PIGEON2
 
 def getSwerveDrivingMotorConfig(driveMotorInverted: bool) -> SparkBaseConfig:
     drivingConfig = SparkBaseConfig()

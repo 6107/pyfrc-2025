@@ -79,11 +79,24 @@ class PhysicsEngine:
 
     @property
     def yaw(self) -> degrees:
-        return self._gyro_yaw.get()
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+            return self._gyro_yaw.get()
+
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
+            return self._gyro.get_yaw().value
+
+        raise NotImplementedError(f"Unsupported IMU/Gyro type: {DriveConstants.GYRO_TYPE}")
 
     @yaw.setter
     def yaw(self, value: degrees) -> None:
-        self._gyro_yaw.set(value)
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+            self._gyro_yaw.set(value)
+
+        elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
+            self._gyro.set_yaw(value)
+
+        else:
+            raise NotImplementedError(f"Unsupported IMU/Gyro type: {DriveConstants.GYRO_TYPE}")
 
     def update_sim(self, _now: float, tm_diff: float) -> None:
         """
@@ -117,8 +130,7 @@ class PhysicsEngine:
             self._gyro_yaw = self._gyro.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
 
         elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
-            self._gyro = simlib.SimDeviceSim("gear-Sensor[2]")
-            self._gyro_yaw = self._gyro.getDouble("Yaw")
+            self._gyro = self._drivetrain.gyro
 
         else:
             raise NotImplementedError(f"Unsupported IMU/Gyro type: {DriveConstants.GYRO_TYPE}")
@@ -148,10 +160,6 @@ class PhysicsEngine:
                 'velocity': spark.getDouble('Velocity'),
                 'output': spark.getDouble('Applied Output')
             }
-        # for key, value in self.spark_dict.items():  # see if these make sense
-        #     print(f'{key}: {value}')
-
-        # self.distances = [0, 0, 0, 0]
 
         # set up the initial location of the robot on the field
         self._alliance_change(self._robot.container.is_red_alliance)
@@ -170,11 +178,6 @@ class PhysicsEngine:
 
         if self._robot.counter % 10 == 0 and self._robot.isEnabled():
             wpilib.SmartDashboard.putNumberArray('target_angles', target_angles)
-
-        # send the speeds and positions from the spark sim devices to the fourmotorswervedrivetrain
-        # module_states = [SwerveModuleState(self.spark_dict[drive]['velocity'].value,
-        #                                    geo.Rotation2d(self.spark_dict[turn]['position'].value))
-        #                  for drive, turn in zip(spark_drives, self.spark_turns)]
 
         # using our own kinematics to update the chassis speeds
         module_states = self._drivetrain.get_desired_swerve_module_states()
