@@ -426,9 +426,9 @@ class DriveSubsystem(Subsystem):
 
             SmartDashboard.putNumber('keep_angle', self.keep_angle)
 
-            # post yaw, pitch, roll so we can see what is going on with the climb
-            ypr = [self.navx.getYaw(), self.get_pitch(), self.navx.getRoll(), self.navx.getRotation2d().degrees()]
-            SmartDashboard.putNumberArray('_navx_YPR', ypr)
+            # post yaw, pitch, roll so we can see what is going on with the climb  TODO: Support this someday
+            # ypr = [self.navx.getYaw(), self.get_pitch(), self.navx.getRoll(), self.navx.getRotation2d().degrees()]
+            # SmartDashboard.putNumberArray('_navx_YPR', ypr)
 
         fl_pos = self.frontLeft.getPosition()
         fr_pos = self.frontRight.getPosition()
@@ -561,7 +561,7 @@ class DriveSubsystem(Subsystem):
             # self.odometry.update(Rotation2d.fromDegrees(self.get_angle()), self.get_module_positions(),)
             self.pose_estimator.updateWithTime(Timer.getFPGATimestamp(),
                                                Rotation2d.fromDegrees(self.get_gyro_angle()),
-                                               self.get_module_positions(), )
+                                               self.get_module_positions())
 
         # in sim, we update from physics.py
         # TODO: if we want to be cool and have spare time, we could use SparkBaseSim with FlywheelSim to do
@@ -575,16 +575,16 @@ class DriveSubsystem(Subsystem):
                 SmartDashboard.putNumber('drive_y', pose.Y())
                 SmartDashboard.putNumber('drive_theta', pose.rotation().degrees())
 
-            SmartDashboard.putNumber('_navx', self.get_angle())
-            SmartDashboard.putNumber('_navx_yaw', self.get_yaw())
-            SmartDashboard.putNumber('_navx_angle', self.get_gyro_angle())
+            # SmartDashboard.putNumber('_gyro', self.get_angle())   # TODO: Support
+            # SmartDashboard.putNumber('_gyro_yaw', self.get_yaw())
+            # SmartDashboard.putNumber('_gyro_angle', self.get_gyro_angle())
 
             SmartDashboard.putNumber('keep_angle', self.keep_angle)
             # SmartDashboard.putNumber('keep_angle_output', output)
 
             # post yaw, pitch, roll so we can see what is going on with the climb
-            ypr = [self.navx.getYaw(), self.get_pitch(), self.navx.getRoll(), self.navx.getRotation2d().degrees()]
-            SmartDashboard.putNumberArray('_navx_YPR', ypr)
+            # ypr = [self.navx.getYaw(), self.get_pitch(), self.navx.getRoll(), self.navx.getRotation2d().degrees()]
+            # SmartDashboard.putNumberArray('_navx_YPR', ypr)
 
             # monitor power as well
             if True:  # RobotBase.isReal():
@@ -659,7 +659,7 @@ class DriveSubsystem(Subsystem):
 
         if resetGyro:
             self.gyro.reset()
-            self.gyro.setAngleAdjustment(0)
+            # self.gyro.setAngleAdjustment(0)   # TODO: Look into this?
             self._lastGyroAngleAdjustment = 0
             self._lastGyroAngleTime = 0
             self._lastGyroAngle = 0
@@ -817,9 +817,8 @@ class DriveSubsystem(Subsystem):
         self.rearRight.resetEncoders()
 
     def getGyroHeading(self) -> Rotation2d:
-        """Returns the heading of the robot, tries to be smart when gyro is disconnected
-
-        :returns: the robot's heading as Rotation2d
+        """
+        Returns the heading of the robot, tries to be smart when gyro is disconnected
         """
         now = Timer.getFPGATimestamp()
         past = self._lastGyroAngleTime
@@ -1025,7 +1024,7 @@ class DriveSubsystem(Subsystem):
     def get_raw_angle(self) -> degrees:  # never reversed value for using PIDs on the heading
         return self.gyro.getAngle()
 
-    def get_gyro_angle(self) -> degrees:  # if necessary reverse the heading for swerve math
+    def get_gyro_angle(self) -> degrees:
         # note this does add in the current offset
         angle = self.gyro.getAngle()
         return -angle if DriveConstants.kGyroReversed else angle
