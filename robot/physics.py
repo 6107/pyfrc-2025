@@ -111,9 +111,17 @@ class PhysicsEngine:
     def _initialize_swerve(self):
         self.kinematics: SwerveDrive4Kinematics = DriveConstants.kDriveKinematics  # our swerve drive kinematics
 
-        # NavX (SPI interface)
-        self._gyro = simlib.SimDeviceSim("navX-Sensor[4]")
-        self._gyro_yaw = self._gyro.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+            # NavX (SPI interface)
+            self._gyro = simlib.SimDeviceSim("navX-Sensor[4]")
+            self._gyro_yaw = self._gyro.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
+
+        elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
+            self._gyro = simlib.SimDeviceSim("gear-Sensor[2]")
+            self._gyro_yaw = self._gyro.getDouble("Yaw")
+
+        else:
+            raise NotImplementedError(f"Unsupported IMU/Gyro type: {DriveConstants.GYRO_TYPE}")
 
         # kinematics chassis speeds wants them in same order as in original definition - unfortunate ordering
         spark_drives = ['lf_drive', 'rf_drive', 'lb_drive', 'rb_drive']
