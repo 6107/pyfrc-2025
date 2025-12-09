@@ -833,7 +833,8 @@ class DriveSubsystem(Subsystem):
                 notCalibrating = False
                 state = "calibrating"
 
-            gyroAngle = self.get_raw_angle()
+            raw_angle = self.get_raw_angle()
+            gyroAngle = -raw_angle if DriveConstants.kGyroReversed else raw_angle
 
             # correct for gyro drift
             if self.gyroOvershootFraction != 0.0 and self._lastGyroAngle != 0 and notCalibrating:
@@ -856,10 +857,7 @@ class DriveSubsystem(Subsystem):
             SmartDashboard.putString("gyro", f"{state} after {int(now - past)}s")
             self._lastGyroState = state
 
-        last_angle = -self._lastGyroAngle if DriveConstants.kGyroReversed else self._lastGyroAngle
-
-        if self.counter % 50 == 0:
-            print(f"Gyro: angle: {last_angle:.2f}")
+        last_angle = self._lastGyroAngle
 
         return Rotation2d.fromDegrees(last_angle)
 

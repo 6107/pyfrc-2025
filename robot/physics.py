@@ -32,6 +32,7 @@ import wpilib
 import wpilib.simulation as simlib  # 2021 name for the simulation library
 from pyfrc.physics.core import PhysicsInterface
 from wpimath.kinematics._kinematics import SwerveDrive4Kinematics, SwerveModulePosition
+from wpimath.units import degrees
 
 from frc_2025.reefscape import *
 from frc_2025.subsystems.swervedrive.constants import DriveConstants
@@ -76,6 +77,14 @@ class PhysicsEngine:
         #       changed to the robot's field view and not the 'overhead' view of the
         #       playing field.
 
+    @property
+    def yaw(self) -> degrees:
+        return self._gyro_yaw.get()
+
+    @yaw.setter
+    def yaw(self, value: degrees) -> None:
+        self._gyro_yaw.set(value)
+
     def update_sim(self, _now: float, tm_diff: float) -> None:
         """
         Called when the simulation parameters for the program need to be
@@ -102,18 +111,9 @@ class PhysicsEngine:
     def _initialize_swerve(self):
         self.kinematics: SwerveDrive4Kinematics = DriveConstants.kDriveKinematics  # our swerve drive kinematics
 
-        # set up LEDs - apparently not necessary - glass gui grabs the default one and you can show it
-        # self.ledsim = simlib.AddressableLEDSim()
-
         # NavX (SPI interface)
-        # self._navx = simlib.SimDeviceSim("navX-Sensor[4]")
-        # self._navx_yaw = self._navx.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
-        # self._navx_angle = self._navx.getDouble("Angle")
-
-        # self._navx_angle.set(self._physics_controller.get_pose().rotation().degrees())
-
-        # analogs = [simlib.AnalogInputSim(i) for i in range(4)]
-        # analog_offsets = []
+        self._gyro = simlib.SimDeviceSim("navX-Sensor[4]")
+        self._gyro_yaw = self._gyro.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
 
         # kinematics chassis speeds wants them in same order as in original definition - unfortunate ordering
         spark_drives = ['lf_drive', 'rf_drive', 'lb_drive', 'rb_drive']
@@ -185,13 +185,13 @@ class PhysicsEngine:
 
         self._drivetrain.resetSimPose(new_pose, [SwerveModulePosition()] * 4,
                                       self._physics_controller.get_pose().rotation())
-        # previous = self._navx_yaw.get()
-        # omega = speeds.omega
-        # degrees = math.degrees(speeds.omega * tm_diff)
-        # new = self._navx_yaw.get() - math.degrees(speeds.omega * tm_diff)
+        previous = self.yaw
+        omega = speeds.omega
+        gyro_degrees = math.degrees(speeds.omega * tm_diff)
+        new = previous - math.degrees(speeds.omega * tm_diff)
 
-        # if log_it:
-        #     logger.debug(f"Update swerve: previous: {previous}, new: {new}, omega: {omega}, degrees: {degrees}")
+        if log_it:
+            logger.debug(f"Update swerve: previous: {previous}, new: {new}, omega: {omega}, degrees: {gyro_degrees}")
 
-        #  self._navx_yaw.set(self._navx_yaw.get() - math.degrees(speeds.omega * tm_diff))
-        # self._navx_yaw.set(-pose.rotation().degrees())
+        gyro_degrees = pose.rotation().degrees()
+        self.yaw = -gyro_degrees if DriveConstants.kGyroReversed else gyro_degrees
