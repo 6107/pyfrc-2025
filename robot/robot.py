@@ -278,78 +278,81 @@ class MyRobot(TimedCommandRobot):
         # Intake wheel control logic
         logger.debug("*** called teleopPeriodic")
 
-        # TODO: As we implement and understand the following, document what we are
-        #       doing here.
-        if self.holding_alge:
-            self.intake_left.set(constants.D_ALGE_HOLD_SPEED)
-            self.intake_right.set(-constants.D_ALGE_HOLD_SPEED)
+        # TODO: Move these all to commands and come up with some generic classes
+        #       like 'Intake', 'Shooter', 'Elevator', ...
 
-        shooter = self.container.controller_shooter
-
-        intake_coral = shooter.getLeftBumperButton()
-        if intake_coral:
-            self.intake_left.set(constants.D_CORAL_INTAKE_SPEED)
-            self.intake_right.set(-constants.D_CORAL_INTAKE_SPEED)
-            self.holding_alge = False
-
-        intake_alge = shooter.getLeftTriggerAxis() >= 0.35
-        if intake_alge:
-            self.intake_left.set(constants.D_ALGE_INTAKE_SPEED)
-            self.intake_right.set(-constants.D_ALGE_INTAKE_SPEED)
-            self.holding_alge = True
-
-        b_shoot = shooter.getRightTriggerAxis() >= 0.35
-        if b_shoot:
-            self.intake_left.set(constants.D_SHOOT_SPEED)
-            self.intake_right.set(-constants.D_SHOOT_SPEED)
-            self.holding_alge = False
-
-        # Elevator control logic
-        pos_l0 = shooter.getRightBumperButtonPressed()
-        pos_l1 = shooter.getAButtonPressed()
-        pos_l2 = shooter.getXButtonPressed()
-        pos_l3 = shooter.getYButtonPressed()
-
-        if pos_l0:
-            self.elevator.set_control(constants.EL_POS_L0)
-
-        if pos_l1:
-            self.elevator.set_control(constants.EL_POS_L1)
-
-        if pos_l2:
-            self.elevator.set_control(constants.EL_POS_L2)
-
-        if pos_l3:
-            self.elevator.set_control(constants.EL_POS_L3)
-
-        pos_intake = shooter.getBButtonPressed()
-        if pos_intake:
-            self.elevator.set_control(constants.EL_POS_IN)
-
-        # TODO: Support additional subsystems
-        # intake_extend = math.fabs(shooter.getLeftY())
-        # # Intake extender logic
-        # if intake_extend >= constants.DEADBAND:
-        #     self.intake_extend.setReference(intake_extend * constants.I_INTAKE_EXTEND_MAX,
-        #                                     SparkBase.ControlType.kPosition)
-        # else:
-        #     self.intake_extend.setReference(0, SparkBase.ControlType.kPosition)
+        # # TODO: As we implement and understand the following, document what we are
+        # #       doing here.
+        # if self.holding_alge:
+        #     self.intake_left.set(constants.D_ALGE_HOLD_SPEED)
+        #     self.intake_right.set(-constants.D_ALGE_HOLD_SPEED)
         #
-        # shoot     = shooter.getRightTriggerAxis() >= 0.35
-        # alge_grab = shooter.getRightStickButton()
+        # shooter = self.container.controller_shooter
         #
-        # # Alge intake control logic
-        # if alge_grab:
-        #     self.alge_roller.set(constants.D_ALGE_GRABBER_GRAB)
-        #     self.alge_rotation.setReference(constants.I_ALGE_ROTATION_OUT, SparkBase.ControlType.kPosition)
+        # intake_coral = shooter.getLeftBumperButton()
+        # if intake_coral:
+        #     self.intake_left.set(constants.D_CORAL_INTAKE_SPEED)
+        #     self.intake_right.set(-constants.D_CORAL_INTAKE_SPEED)
+        #     self.holding_alge = False
         #
-        # elif shoot:
-        #     self.alge_roller.set(constants.D_ALGE_GRABBER_SHOOT)
-        #     self.alge_rotation.setReference(constants.I_ALGE_ROTATION_IN, SparkBase.ControlType.kPosition)
+        # intake_alge = shooter.getLeftTriggerAxis() >= 0.35
+        # if intake_alge:
+        #     self.intake_left.set(constants.D_ALGE_INTAKE_SPEED)
+        #     self.intake_right.set(-constants.D_ALGE_INTAKE_SPEED)
+        #     self.holding_alge = True
         #
-        # else:
-        #     self.alge_roller.set(constants.D_ALGE_GRABBER_HOLD)
-        #     self.alge_rotation.setReference(constants.I_ALGE_ROTATION_IN, SparkBase.ControlType.kPosition)
+        # b_shoot = shooter.getRightTriggerAxis() >= 0.35
+        # if b_shoot:
+        #     self.intake_left.set(constants.D_SHOOT_SPEED)
+        #     self.intake_right.set(-constants.D_SHOOT_SPEED)
+        #     self.holding_alge = False
+        #
+        # # Elevator control logic
+        # pos_l0 = shooter.getRightBumperButtonPressed()
+        # pos_l1 = shooter.getAButtonPressed()
+        # pos_l2 = shooter.getXButtonPressed()
+        # pos_l3 = shooter.getYButtonPressed()
+        #
+        # if pos_l0:
+        #     self.elevator.set_control(constants.EL_POS_L0)
+        #
+        # if pos_l1:
+        #     self.elevator.set_control(constants.EL_POS_L1)
+        #
+        # if pos_l2:
+        #     self.elevator.set_control(constants.EL_POS_L2)
+        #
+        # if pos_l3:
+        #     self.elevator.set_control(constants.EL_POS_L3)
+        #
+        # pos_intake = shooter.getBButtonPressed()
+        # if pos_intake:
+        #     self.elevator.set_control(constants.EL_POS_IN)
+        #
+        # # TODO: Support additional subsystems
+        # # intake_extend = math.fabs(shooter.getLeftY())
+        # # # Intake extender logic
+        # # if intake_extend >= constants.DEADBAND:
+        # #     self.intake_extend.setReference(intake_extend * constants.I_INTAKE_EXTEND_MAX,
+        # #                                     SparkBase.ControlType.kPosition)
+        # # else:
+        # #     self.intake_extend.setReference(0, SparkBase.ControlType.kPosition)
+        # #
+        # # shoot     = shooter.getRightTriggerAxis() >= 0.35
+        # # alge_grab = shooter.getRightStickButton()
+        # #
+        # # # Alge intake control logic
+        # # if alge_grab:
+        # #     self.alge_roller.set(constants.D_ALGE_GRABBER_GRAB)
+        # #     self.alge_rotation.setReference(constants.I_ALGE_ROTATION_OUT, SparkBase.ControlType.kPosition)
+        # #
+        # # elif shoot:
+        # #     self.alge_roller.set(constants.D_ALGE_GRABBER_SHOOT)
+        # #     self.alge_rotation.setReference(constants.I_ALGE_ROTATION_IN, SparkBase.ControlType.kPosition)
+        # #
+        # # else:
+        # #     self.alge_roller.set(constants.D_ALGE_GRABBER_HOLD)
+        # #     self.alge_rotation.setReference(constants.I_ALGE_ROTATION_IN, SparkBase.ControlType.kPosition)
 
     def teleopExit(self) -> None:
         """

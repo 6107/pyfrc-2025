@@ -23,17 +23,16 @@ from typing import List, Optional, Callable
 import commands2
 import commands2.button
 import commands2.cmd
-from phoenix6.hardware.talon_fx import TalonFX
-from rev import SparkFlex, SparkMax, SparkLowLevel, SparkClosedLoopController
-from wpilib import RobotBase, XboxController, SmartDashboard, SendableChooser, Field2d, \
-    DriverStation
-
 from frc_2025 import constants
 from frc_2025.commands.holonomicdrive import HolonomicDrive
 from frc_2025.subsystems.swervedrive.constants import OIConstants
 from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem
 from lib_6107.commands.reset_xy import ResetXY
 from lib_6107.commands.trajectory import SwerveTrajectory
+from phoenix6.hardware.talon_fx import TalonFX
+from rev import SparkFlex, SparkMax, SparkLowLevel, SparkClosedLoopController
+from wpilib import RobotBase, XboxController, SmartDashboard, SendableChooser, Field2d, \
+    DriverStation
 
 # TODO: pathplanner stuff needed?
 
@@ -83,10 +82,12 @@ class RobotContainer:
         self.robotDrive = self.robot_drive = DriveSubsystem(robot, self)  # TODO: drop robotDrive later
 
         # Configure the button bindings
-        if isinstance(self.driver_controller, commands2.button.CommandXboxController):
-            self.configureButtonBindings_xbox()
-        else:
-            self.configureButtonBindings_Joystick()
+        for controller, is_driver in ((self.driver_controller, True),
+                                      (self.controller_shooter, False)):
+            if isinstance(controller, commands2.button.CommandXboxController):
+                self.configureButtonBindings_xbox(controller, is_driver)
+            else:
+                self.configureButtonBindings_Joystick(controller, is_driver)
 
         # Configure the autos
         self.configureAutos()
@@ -135,23 +136,6 @@ class RobotContainer:
         """
         return self._is_red_alliance
 
-    def register_alliance_change_callback(self, callback: Callable[[bool], None]):
-        """
-        Subsystems (or simulation physics) can register for changed to the SmartDashboard alliance
-        settings. If a change occurs before a match starts, then this allows for changed to be
-        easily captured.
-        """
-        self._alliance_change_callbacks.append(callback)
-
-    def set_start_time(self) -> None:  # call in teleopInit and autonomousInit in the robot
-        self.start_time = time.time()
-
-    def get_enabled_time(self) -> float:  # call when we want to know the start/elapsed time for status and debug messages
-        return time.time() - self.start_time
-
-    def elapsed_time(self) -> float:
-        return time.time() - self.start_time
-
     def check_alliance(self) -> None:
         """
         Support alliance changes up until we start the competition. Default is the blue
@@ -178,13 +162,23 @@ class RobotContainer:
         """
         self._alliance_change_callbacks.append(callback)
 
-    def configureButtonBindings_xbox(self) -> None:
+    def set_start_time(self) -> None:  # call in teleopInit and autonomousInit in the robot
+        self.start_time = time.time()
+
+    def get_enabled_time(
+            self) -> float:  # call when we want to know the start/elapsed time for status and debug messages
+        return time.time() - self.start_time
+
+    def elapsed_time(self) -> float:
+        return time.time() - self.start_time
+
+    def configureButtonBindings_xbox(self, controller, is_driver: bool) -> None:
         """
         Use this method to define your button->command mappings. Buttons can be created by
         instantiating a :GenericHID or one of its subclasses (Joystick or XboxController),
         and then passing it to a JoystickButton.
         """
-        logger.debug("*** called configureButtonBindings")
+        logger.debug(f"*** called configureButtonBindings, controller: {controller}, is_driver: {is_driver}")
 
         # TODO: The java application had a different commands tied to default and the left/right
         #       bumper (buttons) on the XBox.
@@ -194,20 +188,27 @@ class RobotContainer:
         # driveRobotOrientedAngularVelocity = self.robotDrive.driveFieldOriented(self.driveRobotOriented)
         #
         # self.robotDrive.setDefaultCommand(driveFieldOrientedAnglularVelocity)
+        if is_driver:
+            # Robot Driver (primarily responsible for robot path
 
-        self.driver_controller.a().onTrue(commands2.cmd.runOnce(lambda: self.robotDrive.zeroGyro))
-        self.driver_controller.y().whileTrue(
-            commands2.cmd.runOnce(lambda: self.robotDrive.lock, self.robotDrive).repeatedly())
-        self.driver_controller.start().onTrue(commands2.cmd.runOnce(lambda: self.robotDrive.resetGyroToInitial))
-        # self.driver_controller.leftBumper().onTrue(driveRobotOrientedAngularVelocity)
-        # self.driver_controller.rightBumper().onTrue(driveFieldOrientedAngularVelocity)
+            controller.a().onTrue(commands2.cmd.runOnce(lambda: self.robotDrive.zeroGyro))
+            controller.y().whileTrue(commands2.cmd.runOnce(lambda: self.robotDrive.lock,
+                                                           self.robotDrive).repeatedly())
+            controller.start().onTrue(commands2.cmd.runOnce(lambda: self.robotDrive.resetGyroToInitial))
 
-    def configureButtonBindings_Joystick(self) -> None:
+            # controller.leftBumper().onTrue(driveRobotOrientedAngularVelocity)
+            # controller.rightBumper().onTrue(driveFieldOrientedAngularVelocity)
+        else:
+            # Robot Operator (responsible for intakes, shooters, ...)
+            pass
+
+    def configureButtonBindings_Joystick(self, controller, is_driver: bool) -> None:
         """
         Use this method to define your button->command mappings. Buttons can be created by
         instantiating a :GenericHID or one of its subclasses (Joystick or XboxController),
         and then passing it to a JoystickButton.
         """
+        logger.debug(f"*** called configureButtonBindings, controller: {controller}, is_driver: {is_driver}")
         pass  # TODO: Not supported at this time. If this is supported, look into places where
         #       XboxController may be used directly (such as in the default drive command
         #       above). Eventually need to abstract this.
