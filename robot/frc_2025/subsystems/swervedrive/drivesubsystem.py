@@ -16,31 +16,33 @@
 # ------------------------------------------------------------------------ #
 
 import logging
-import math
 from typing import Callable, Tuple, Optional, List, Dict, Union, Any
 
+import math
 import navx
 import ntcore
 import robotpy_apriltag as apriltag
 from commands2 import Subsystem, TimedCommandRobot, InstantCommand
-from frc_2025.reefscape import RED_TEST_POSE, BLUE_TEST_POSE
-from frc_2025.subsystems import constants
-from frc_2025.subsystems.swervedrive import swerveutils
-from frc_2025.subsystems.swervedrive.constants import DriveConstants, ModuleConstants
-from frc_2025.subsystems.swervedrive.maxswervemodule import MAXSwerveModule
 from pathplannerlib.auto import AutoBuilder
 from pathplannerlib.config import RobotConfig
 from phoenix6.hardware import pigeon2
 from rev import SparkMax
 from wpilib import SmartDashboard, Field2d, RobotBase, Timer, DriverStation
-from wpilib.simulation import SimDeviceSim
+from wpilib import simulation
 from wpimath.controller import PIDController
 from wpimath.estimator import SwerveDrive4PoseEstimator
 from wpimath.filter import SlewRateLimiter
 from wpimath.geometry import Transform2d, Transform3d, Translation3d, Rotation3d, \
     Pose3d, Rotation2d, Translation2d, Pose2d
-from wpimath.kinematics import ChassisSpeeds, SwerveModuleState, SwerveDrive4Kinematics, SwerveDrive4Odometry
+from wpimath.kinematics import ChassisSpeeds, SwerveModuleState, SwerveDrive4Kinematics, \
+    SwerveDrive4Odometry, SwerveModulePosition
 from wpimath.units import degrees, degrees_per_second
+
+from frc_2025.reefscape import RED_TEST_POSE, BLUE_TEST_POSE
+from frc_2025.subsystems import constants
+from frc_2025.subsystems.swervedrive import swerveutils
+from frc_2025.subsystems.swervedrive.constants import DriveConstants
+from frc_2025.subsystems.swervedrive.maxswervemodule import MAXSwerveModule
 
 # TODO: This value needs to be tested. Perform the following on a real robot
 #
@@ -104,13 +106,14 @@ logger = logging.getLogger(__name__)
 
 
 class DriveSubsystem(Subsystem):
-    def __init__(self, robot: 'MyRobot', container: 'RobotContainer',
+    def __init__(self, container: 'RobotContainer',
                  maxSpeedScaleFactor: Optional[Callable[[None], float]] = None) -> None:
         super().__init__()
         if maxSpeedScaleFactor is not None:
             assert callable(maxSpeedScaleFactor)
 
-        self._robot = robot
+        self._container = container
+        self._robot = container.robot
         self.vision_supported = constants.k_use_vision_odometry
         self.field_relative = True
 
@@ -255,6 +258,29 @@ class DriveSubsystem(Subsystem):
     @property
     def gyro(self) -> Optional[Union[Any, pigeon2.Pigeon2]]:
         return self._gyro
+
+    @property
+    def sim_yaw(self) -> degrees:
+        # TODO: Copied from physics.py reconcile with any existing functions in this class
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+            return self._sim_gyro.getDouble("Yaw").get()
+
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
+            return self._sim_gyro.get_yaw().value
+
+        raise NotImplementedError(f"Unsupported IMU/Gyro type: {DriveConstants.GYRO_TYPE}")
+
+    @sim_yaw.setter
+    def sim_yaw(self, value: degrees) -> None:
+        # TODO: Copied from physics.py reconcile with any existing functions in this class
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+            self._sim_gyro.getDouble("Yaw").set(value)
+
+        elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
+            self._sim_gyro_state.set_raw_yaw(value)
+
+        else:
+            raise NotImplementedError(f"Unsupported IMU/Gyro type: {DriveConstants.GYRO_TYPE}")
 
     def _init_vision_odometry(self):
         # TODO: Below is code from team 2429 where they use vision to estimate position.
@@ -413,9 +439,22 @@ class DriveSubsystem(Subsystem):
             initial_pose = RED_TEST_POSE if is_red else BLUE_TEST_POSE
             self.resetOdometry(initial_pose)
 
+    def initialize_dashboard(self) -> None:
+        """
+        Configure the SmartDashboard for this subsystem
+        """
+        pass  # TODO: Add me
+
+    def configure_button_bindings(self, driver, shooter) -> None:
+        """
+        Configure the driver and shooter joystick controls here
+        """
+        pass  # TODO: Add me
+
     def periodic(self) -> None:
-        log_it = self._robot.counter % 20 == 0 and self._robot.isEnabled()
-        update_dash = self._robot.counter % 20 == 0 or (self._robot.isEnabled() and self._robot.counter % 10 == 0)
+        enabled = self._robot.isEnabled()
+        log_it = self._robot.counter % 20 == 0 and enabled
+        update_dash = self._robot.counter % 20 == 0 or (enabled and self._robot.counter % 10 == 0)
 
         if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
             if not self.gyro_calibrated and not self._gyro.isCalibrating():
@@ -631,6 +670,120 @@ class DriveSubsystem(Subsystem):
         # Import pose from QuestNav.
         if self.vision_supported:
             self.quest_periodic()
+
+    def sim_init(self, physics_controller: 'PhysicsInterface') -> None:
+        """
+        Initialize any simulation only needed parameters
+        """
+        self._physics_controller = physics_controller
+        self.kinematics: SwerveDrive4Kinematics = DriveConstants.kDriveKinematics  # our swerve drive kinematics
+
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+            # NavX (SPI interface)
+            self._sim_gyro = simulation.SimDeviceSim("navX-Sensor[4]")
+
+        elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
+            self._sim_gyro = self.gyro
+            self._sim_gyro_state = self.gyro.sim_state
+
+        else:
+            raise NotImplementedError(f"Unsupported IMU/Gyro type: {DriveConstants.GYRO_TYPE}")
+
+        # kinematics chassis speeds wants them in same order as in original definition - unfortunate ordering
+        spark_drives = ['lf_drive', 'rf_drive', 'lb_drive', 'rb_drive']
+        spark_drive_ids = [21, 25, 23, 27]  # keep in this order - based on our kinematics definition
+        self.spark_turns = ['lf_turn', 'rf_turn', 'lb_turn', 'rb_turn']
+        spark_turn_ids = [20, 24, 22, 26]  # keep in this order
+
+        # Got rid of last year's elements: 'br_crank', 'bl_crank', 'tr_crank', 'tl_crank', 't_shooter', 'b_shooter'
+        spark_peripherals = ['intake', 'indexer']
+        spark_peripheral_ids = [5, 12]  # Kept  'indexer' id as 12 because it came last before removing the elements
+
+        # allow ourselves to access the sim device's Position, Velocity, Applied Output, etc
+        spark_names = spark_drives + self.spark_turns + spark_peripherals
+        spark_ids = spark_drive_ids + spark_turn_ids + spark_peripheral_ids
+
+        # create a dictionary so we can refer to the sparks by name and get their relevant parameters
+        self.spark_dict = {}
+        for idx, (spark_name, can_id) in enumerate(zip(spark_names, spark_ids)):
+            spark = simulation.SimDeviceSim(f'SPARK MAX [{can_id}]')
+
+            self.spark_dict[spark_name] = {
+                'controller': spark,
+                'position': spark.getDouble('Position'),
+                'velocity': spark.getDouble('Velocity'),
+                'output': spark.getDouble('Applied Output')
+            }
+
+        # set up the initial location of the robot on the field
+        self._alliance_change(self._container.is_red_alliance)
+
+    def simulationPeriodic(self, **kwargs) -> Optional[float]:
+        """
+        This method is called periodically by the CommandScheduler (after the periodic
+        function. It is useful for updating subsystem-specific state that needs to be
+        maintained for simulations, such as for updating simulation classes and setting
+        simulated sensor readings.
+
+        Unlike the physics 'update_sim', it is not called with the current time (now)
+        or the amount of time since 'update_sim' was called (tm_diff).  It is called
+        just after the 'periodic' call and before the 'update_sim' is called.
+
+        To unify the two uses, our call signature above has a kwargs parameter so we
+        know when we are being called. Typically, we only need to support one method
+        but for future simulation purposes, if called with keywords, return the amperage
+        used in this interval
+        """
+        # For the swerve drive, we only support the 'update_sim' form of call
+        if not kwargs:
+            return None
+
+        now, tm_diff = kwargs["now"], kwargs["tm_diff"]
+        amperes_used = 0.0  # TODO: Support in future
+
+        log_it = self._robot.counter % 20 == 0
+
+        if log_it:
+            logger.debug("Update swerve:===========================================")
+            logger.debug(f"Update swerve: Entry. tm_diff: {tm_diff:.4f}")
+
+        dash_values = ['lf_target_vel_angle', 'rf_target_vel_angle', 'lb_target_vel_angle', 'rb_target_vel_angle']
+        target_angles = [SmartDashboard.getNumberArray(dash_value, [0, 0])[1] for dash_value in dash_values]
+        for spark_turn, target_angle in zip(self.spark_turns, target_angles):
+            self.spark_dict[spark_turn]['position'].set(target_angle)  # this works to update the simulated spark
+
+        if self._robot.counter % 10 == 0 and self._robot.isEnabled():
+            SmartDashboard.putNumberArray('target_angles', target_angles)
+
+        # using our own kinematics to update the chassis speeds
+        module_states = self.get_desired_swerve_module_states()
+        speeds = self.kinematics.toChassisSpeeds(module_states)
+
+        if log_it:
+            logger.debug(f"Update swerve before drive command: module states: {module_states}, speeds: {speeds}")
+
+        # update the sim's robot. Returned value is same as what is returned from self._physics_controller.get_pose()
+        pose = self._physics_controller.drive(speeds, tm_diff)
+
+        # Limit it to the field size (manually)  TODO: Is there a programmatic way to do this?
+        x = min(17.5, max(0.0, pose.x))
+        y = min(8.0, max(0.0, pose.y))
+        new_pose = Pose2d(x, y, pose.rotation())
+
+        self.resetSimPose(new_pose, [SwerveModulePosition()] * 4,
+                          self._physics_controller.get_pose().rotation())
+        previous = self.sim_yaw
+        omega = speeds.omega
+        gyro_degrees = math.degrees(speeds.omega * tm_diff)
+        new = previous - math.degrees(speeds.omega * tm_diff)
+
+        if log_it:
+            logger.debug(f"Update swerve: previous: {previous}, new: {new}, omega: {omega}, degrees: {gyro_degrees}")
+
+        gyro_degrees = pose.rotation().degrees()
+        self.sim_yaw = -gyro_degrees if DriveConstants.kGyroReversed else gyro_degrees
+
+        return amperes_used
 
     def getHeading(self) -> Rotation2d:
         return self.getPose().rotation()

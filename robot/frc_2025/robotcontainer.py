@@ -17,24 +17,24 @@
 
 import logging
 import platform
-import time
 from typing import List, Optional, Callable
 
-import commands2
-import commands2.button
-import commands2.cmd
+import time
+from commands2 import Subsystem, Command, RunCommand, InstantCommand, cmd, button
+from wpilib import RobotBase, XboxController, SmartDashboard, SendableChooser, Field2d, DriverStation
+
 from frc_2025 import constants
 from frc_2025.commands.holonomicdrive import HolonomicDrive
+from frc_2025.subsystems.alge_subsystem import AlgeSubsystem, AlgeRoller, AlgeRotation
+from frc_2025.subsystems.constants import DeviceID
+from frc_2025.subsystems.coral_intake import LeftCoralIntake, RightCoralIntake, ExtendCoralIntake
+from frc_2025.subsystems.elevator_subsystem import Elevator
 from frc_2025.subsystems.swervedrive.constants import OIConstants
 from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem
 from lib_6107.commands.reset_xy import ResetXY
 from lib_6107.commands.trajectory import SwerveTrajectory
-from phoenix6.hardware.talon_fx import TalonFX
-from rev import SparkFlex, SparkMax, SparkLowLevel, SparkClosedLoopController
-from wpilib import RobotBase, XboxController, SmartDashboard, SendableChooser, Field2d, \
-    DriverStation
 
-# TODO: pathplanner stuff needed?
+# TODO: path planner stuff needed?
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,6 @@ class RobotContainer:
         logger.debug("*** called container __init__")
         self.start_time = time.time()
         self.robot = robot
-
         self.simulation = RobotBase.isSimulation()
 
         # Alliance support
@@ -59,32 +58,48 @@ class RobotContainer:
         self._alliance_change_callbacks: List[Callable[[bool], None]] = []
 
         # The driver's controller
-        self.driver_controller = commands2.button.CommandXboxController(constants.kDriverControllerPort)
+        self.driver_controller = button.CommandXboxController(constants.kDriverControllerPort)
 
         # Shooter's controller
         self.controller_shooter: XboxController = XboxController(constants.kShooterControllerPort)  # On USB-port
 
-        self.elevator: TalonFX = TalonFX(10)  # Device ID is 10 (as configured in the Phoenix Tuner)
-        self.alge_roller: SparkFlex = SparkFlex(11, SparkLowLevel.MotorType.kBrushless)  # Device ID 11
-        self.alge_rotation: SparkMax = SparkMax(12, SparkLowLevel.MotorType.kBrushless)  # Device ID 12
-
-        self.c_alge_rotation: SparkClosedLoopController = self.alge_rotation.getClosedLoopController()
-
-        self.intake_left: SparkMax = SparkMax(13, SparkLowLevel.MotorType.kBrushless)  # Device ID 13
-        self.intake_right: SparkMax = SparkMax(14, SparkLowLevel.MotorType.kBrushless)  # Device ID 14
-        self.intake_extend: SparkMax = SparkMax(15, SparkLowLevel.MotorType.kBrushless)  # Device ID 15
-
-        self.c_intake_extend: SparkClosedLoopController = self.intake_extend.getClosedLoopController()
-
+        ########################################################
+        # Subsystem initialization
+        #
         # # From the 2025 Java (TODO: Get the JSON files from swerve/neo and update our python code/validate it)
         # filePath = os.path.join(getDeployDirectory(), "swerve/neo")
-        # self.robotDrive = SwerveSubsystem(filePath)
-        self.robotDrive = self.robot_drive = DriveSubsystem(robot, self)  # TODO: drop robotDrive later
+        # self.robot_drive = SwerveSubsystem(filePath)
+        self.robot_drive = DriveSubsystem(self)
 
+        # TODO: Create subsystems for the following and then commands instead of the periodic check
+        self._elevator: Subsystem = Elevator(DeviceID.ELEVATOR_DEVICE_ID,
+                                             robot)  # Device ID is 10 (as configured in the Phoenix Tuner)
+
+        self._alge_subsystem: AlgeSubsystem = AlgeSubsystem(DeviceID.ALGE_ROLLER_DEVICE_ID,
+                                                            DeviceID.ALGE_ROTATION_DEVICE_ID,
+                                                            self)
+
+        self._intake_left: LeftCoralIntake = LeftCoralIntake(DeviceID.INTAKE_LEFT_DEVICE_ID, self)
+        self._intake_right: RightCoralIntake = RightCoralIntake(DeviceID.INTAKE_RIGHT_DEVICE_ID, self)
+        self._intake_extend: ExtendCoralIntake = ExtendCoralIntake(DeviceID.INTAKE_EXTEND_DEVICE_ID, self)
+
+        # Now save off our subsystems. The robot core code will already call the periodic() function
+        # as needed, but having our own list (iterated in order) allows us to move much of
+        # the other subsystem 'tasks' into a generic loop.
+
+        self.subsystems: List[Subsystem] = [
+            self.robot_drive,
+            self._elevator,
+            self._alge_subsystem,  # Alge should always be called before intake logic
+            self._intake_left,
+            self._intake_right,
+            self._intake_extend  # Call last of the intakes since it may set 'shoot' to false
+        ]
+        ########################################################
         # Configure the button bindings
         for controller, is_driver in ((self.driver_controller, True),
                                       (self.controller_shooter, False)):
-            if isinstance(controller, commands2.button.CommandXboxController):
+            if isinstance(controller, button.CommandXboxController):
                 self.configureButtonBindings_xbox(controller, is_driver)
             else:
                 self.configureButtonBindings_Joystick(controller, is_driver)
@@ -92,8 +107,15 @@ class RobotContainer:
         # Configure the autos
         self.configureAutos()
 
+        ########################################################
+        # Initialize the Smart dashboard for each subsystem
         # Dashboard setup
-        self.initialize_dashboard()
+        self.initialize_dashboard()  # TODO: Deprecate this
+
+        for subsystem in self.subsystems:
+            if hasattr(subsystem, "initialize_dashboard") and callable(getattr(subsystem,
+                                                                               "initialize_dashboard")):
+                subsystem.initialize_dashboard()
 
         # Configure default command for driving using joystick sticks
         field_relative = self.robot_drive.field_relative
@@ -107,7 +129,7 @@ class RobotContainer:
                 rightAxisX = XboxController.Axis.kLeftTrigger
 
         drive_cmd = HolonomicDrive(self,
-                                   self.robotDrive,
+                                   self.robot_drive,
                                    forwardSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftY),
                                    leftSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftX),
                                    rotationSpeed=lambda: -self.driver_controller.getRawAxis(rightAxisX),
@@ -116,10 +138,38 @@ class RobotContainer:
                                    rateLimit=True,
                                    square=True)
 
-        self.robotDrive.setDefaultCommand(drive_cmd)
+        self.robot_drive.setDefaultCommand(drive_cmd)
         #
         # # TODO: Move pathfinding init here so it is ready for autonomous mode
         #
+
+    @property
+    def elevator(self) -> Subsystem:
+        return self._elevator
+
+    @property
+    def alge_subsystem(self) -> AlgeSubsystem:
+        return self._alge_subsystem
+
+    @property
+    def alge_roller(self) -> AlgeRoller:
+        return self.alge_subsystem.alge_roller
+
+    @property
+    def alge_rotation(self) -> AlgeRotation:
+        return self.alge_subsystem.alge_rotation
+
+    @property
+    def intake_left(self) -> Subsystem:
+        return self._intake_left
+
+    @property
+    def intake_right(self) -> Subsystem:
+        return self._intake_right
+
+    @property
+    def intake_extend(self) -> Subsystem:
+        return self._intake_extend
 
     @property
     def field(self) -> Field2d:
@@ -180,21 +230,22 @@ class RobotContainer:
         """
         logger.debug(f"*** called configureButtonBindings, controller: {controller}, is_driver: {is_driver}")
 
+        # TODO: call subsystems to do this
         # TODO: The java application had a different commands tied to default and the left/right
         #       bumper (buttons) on the XBox.
         # TODO: Need to reconcile with java cade
-        # # driveFieldOrientedDirectAngle      = robotDrive.driveFieldOriented(self.driveDirectAngle)
-        # driveFieldOrientedAngularVelocity = self.robotDrive.driveFieldOriented(self.driveAngularVelocity)
-        # driveRobotOrientedAngularVelocity = self.robotDrive.driveFieldOriented(self.driveRobotOriented)
+        # # driveFieldOrientedDirectAngle      = robot_drive.driveFieldOriented(self.driveDirectAngle)
+        # driveFieldOrientedAngularVelocity = self.robot_drive.driveFieldOriented(self.driveAngularVelocity)
+        # driveRobotOrientedAngularVelocity = self.robot_drive.driveFieldOriented(self.driveRobotOriented)
         #
-        # self.robotDrive.setDefaultCommand(driveFieldOrientedAnglularVelocity)
+        # self.robot_drive.setDefaultCommand(driveFieldOrientedAnglularVelocity)
         if is_driver:
             # Robot Driver (primarily responsible for robot path
 
-            controller.a().onTrue(commands2.cmd.runOnce(lambda: self.robotDrive.zeroGyro))
-            controller.y().whileTrue(commands2.cmd.runOnce(lambda: self.robotDrive.lock,
-                                                           self.robotDrive).repeatedly())
-            controller.start().onTrue(commands2.cmd.runOnce(lambda: self.robotDrive.resetGyroToInitial))
+            controller.a().onTrue(cmd.runOnce(lambda: self.robot_drive.zeroGyro))
+            controller.y().whileTrue(cmd.runOnce(lambda: self.robot_drive.lock,
+                                                 self.robot_drive).repeatedly())
+            controller.start().onTrue(cmd.runOnce(lambda: self.robot_drive.resetGyroToInitial))
 
             # controller.leftBumper().onTrue(driveRobotOrientedAngularVelocity)
             # controller.rightBumper().onTrue(driveFieldOrientedAngularVelocity)
@@ -221,9 +272,9 @@ class RobotContainer:
         self.setMotorBrake(True)
 
     def setMotorBrake(self, brake: bool) -> None:
-        self.robotDrive.setMotorBrake(brake)
+        self.robot_drive.setMotorBrake(brake)
 
-    def getAutonomousCommand(self) -> commands2.Command:
+    def getAutonomousCommand(self) -> Command:
         """
         :returns: the command to run in autonomous
         """
@@ -247,24 +298,24 @@ class RobotContainer:
         SmartDashboard.putData("Chosen Auto", self.chosenAuto)
 
     def getAutonomousLeftBlue(self):
-        setStartPose = ResetXY(x=0.783, y=6.686, heading_degrees=+60, drivetrain=self.robotDrive)
-        driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robotDrive)
-        stop = commands2.InstantCommand(lambda: self.robotDrive.arcadeDrive(0, 0))
+        setStartPose = ResetXY(x=0.783, y=6.686, heading_degrees=+60, drivetrain=self.robot_drive)
+        driveForward = RunCommand(lambda: self.robot_drive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robot_drive)
+        stop = InstantCommand(lambda: self.robot_drive.arcadeDrive(0, 0))
 
         command = setStartPose.andThen(driveForward.withTimeout(1.0)).andThen(stop)
         return command
 
     def getAutonomousLeftRed(self):
-        setStartPose = ResetXY(x=15.777, y=4.431, heading_degrees=-120, drivetrain=self.robotDrive)
-        driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robotDrive)
-        stop = commands2.InstantCommand(lambda: self.robotDrive.arcadeDrive(0, 0))
+        setStartPose = ResetXY(x=15.777, y=4.431, heading_degrees=-120, drivetrain=self.robot_drive)
+        driveForward = RunCommand(lambda: self.robot_drive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robot_drive)
+        stop = InstantCommand(lambda: self.robot_drive.arcadeDrive(0, 0))
 
         command = setStartPose.andThen(driveForward.withTimeout(2.0)).andThen(stop)
         return command
 
-    def getAutonomousTrajectoryExample(self) -> commands2.Command:
+    def getAutonomousTrajectoryExample(self) -> Command:
         command = SwerveTrajectory(
-            drivetrain=self.robotDrive,
+            drivetrain=self.robot_drive,
             speed=+1.0,
             waypoints=[
                 (1.0, 4.0, 0.0),  # start at x=1.0, y=4.0, heading=0 degrees (North)
@@ -278,15 +329,15 @@ class RobotContainer:
         )
         return command
 
-    def getTestCommand(self) -> Optional[commands2.Command]:
+    def getTestCommand(self) -> Optional[Command]:
         """
         :returns: the command to run in test mode ("test dance") to exercise all subsystems
         """
 
         # example commands that test drivetrain's motors and gyro (our only subsystem)
-        turnRight = AimToDirection(degrees=-45, drivetrain=self.robotDrive, speed=0.25)
-        turnLeft = AimToDirection(degrees=45, drivetrain=self.robotDrive, speed=0.25)
-        backToZero = AimToDirection(degrees=0, drivetrain=self.robotDrive, speed=0.0)
+        turnRight = AimToDirection(degrees=-45, drivetrain=self.robot_drive, speed=0.25)
+        turnLeft = AimToDirection(degrees=45, drivetrain=self.robot_drive, speed=0.25)
+        backToZero = AimToDirection(degrees=0, drivetrain=self.robot_drive, speed=0.0)
 
         command = turnRight.andThen(turnLeft).andThen(backToZero)
         return command
@@ -331,8 +382,8 @@ class RobotContainer:
         # '''
         #
         # # experimental, not used on dash
-        # SmartDashboard.putData("Go to 60 deg pid", commands2.cmd.runOnce(lambda: self.pivot.set_goal(math.radians(60), False), self.pivot))
-        # SmartDashboard.putData("Go to 90 deg pid", commands2.cmd.runOnce(lambda: self.pivot.set_goal(math.radians(90), False), self.pivot))
+        # SmartDashboard.putData("Go to 60 deg pid", cmd.runOnce(lambda: self.pivot.set_goal(math.radians(60), False), self.pivot))
+        # SmartDashboard.putData("Go to 90 deg pid", cmd.runOnce(lambda: self.pivot.set_goal(math.radians(90), False), self.pivot))
         # SmartDashboard.putData('SetSuccess', SetLEDs(container=self, led=self.led, indicator=Led.Indicator.kSUCCESS))
         # SmartDashboard.putData('MoveElevator', MoveElevator(container=self, elevator=self.elevator, mode='absolute'))
         # SmartDashboard.putData('MovePivot', MovePivot(container=self, pivot=self.pivot, mode='absolute'))
@@ -358,16 +409,16 @@ class RobotContainer:
         # SmartDashboard.putData("ResetFlex", Reflash(container=self))
         # SmartDashboard.putData('GoToScore', Score(container=self))
         # SmartDashboard.putData('GoToStow', GoToStow(container=self))
-        # SmartDashboard.putData('GoToL1', commands2.InstantCommand(lambda: self.robot_state.set_target(RobotState.Target.L1)).ignoringDisable(True).andThen(GoToReefPosition(self, 1)))
-        # SmartDashboard.putData('GoToL2', commands2.InstantCommand(lambda: self.robot_state.set_target(RobotState.Target.L2)).ignoringDisable(True).andThen(GoToReefPosition(self, 2)))
-        # SmartDashboard.putData('GoToL3', commands2.InstantCommand(lambda: self.robot_state.set_target(RobotState.Target.L3)).ignoringDisable(True).andThen(GoToReefPosition(self, 3)))
-        # SmartDashboard.putData('GoToL4', commands2.InstantCommand(lambda: self.robot_state.set_target(RobotState.Target.L4)).ignoringDisable(True).andThen(GoToReefPosition(self, 4)))
+        # SmartDashboard.putData('GoToL1', InstantCommand(lambda: self.robot_state.set_target(RobotState.Target.L1)).ignoringDisable(True).andThen(GoToReefPosition(self, 1)))
+        # SmartDashboard.putData('GoToL2', InstantCommand(lambda: self.robot_state.set_target(RobotState.Target.L2)).ignoringDisable(True).andThen(GoToReefPosition(self, 2)))
+        # SmartDashboard.putData('GoToL3', InstantCommand(lambda: self.robot_state.set_target(RobotState.Target.L3)).ignoringDisable(True).andThen(GoToReefPosition(self, 3)))
+        # SmartDashboard.putData('GoToL4', InstantCommand(lambda: self.robot_state.set_target(RobotState.Target.L4)).ignoringDisable(True).andThen(GoToReefPosition(self, 4)))
         # SmartDashboard.putData('Set valid tag IDs', SetValidTags(self, constants.VisionConstants.k_valid_tags))
-        # SmartDashboard.putData('CalElevatorUp', commands2.InstantCommand(lambda: self.elevator.offset_encoder_position_meters(0.025)).ignoringDisable(True))
-        # SmartDashboard.putData('CalElevatorDown', commands2.InstantCommand(lambda: self.elevator.offset_encoder_position_meters(-0.025)).ignoringDisable(True))
+        # SmartDashboard.putData('CalElevatorUp', InstantCommand(lambda: self.elevator.offset_encoder_position_meters(0.025)).ignoringDisable(True))
+        # SmartDashboard.putData('CalElevatorDown', InstantCommand(lambda: self.elevator.offset_encoder_position_meters(-0.025)).ignoringDisable(True))
         # SmartDashboard.putData('RecalWrist', RecalibrateWrist(container=self).withTimeout(10))
-        # SmartDashboard.putData('CalWristUp', commands2.InstantCommand(lambda: self.wrist.offset_encoder_position_degrees(2)).ignoringDisable(True))
-        # SmartDashboard.putData('CalWristDown', commands2.InstantCommand(lambda: self.wrist.offset_encoder_position_degrees(-2)).ignoringDisable(True))
+        # SmartDashboard.putData('CalWristUp', InstantCommand(lambda: self.wrist.offset_encoder_position_degrees(2)).ignoringDisable(True))
+        # SmartDashboard.putData('CalWristDown', InstantCommand(lambda: self.wrist.offset_encoder_position_degrees(-2)).ignoringDisable(True))
         # # end pyqt dashboard section
 
         # # quick way to test all scoring positions from dashboard
@@ -375,7 +426,7 @@ class RobotContainer:
         # [self.score_test_chooser.addOption(key, value) for key, value in self.robot_state.targets_dict.items()]  # add all the indicators
         # self.score_test_chooser.onChange(
         #     listener=lambda selected_value: commands2.CommandScheduler.getInstance().schedule(
-        #         commands2.cmd.runOnce(lambda: self.robot_state.set_target(target=selected_value))))
+        #         cmd.runOnce(lambda: self.robot_state.set_target(target=selected_value))))
         # SmartDashboard.putData('RobotScoringMode', self.score_test_chooser)
         #
         # self.auto_chooser = AutoBuilder.buildAutoChooser('')  # this loops through the path planner deploy directory

@@ -18,7 +18,6 @@
 # Constants for source in this subdirectory will go here
 import os
 
-from phoenix6.controls.position_voltage import PositionVoltage
 from wpimath import units
 
 ###############################################################################
@@ -39,23 +38,9 @@ ROBOT_MASS = units.lbsToKilograms(148 - 20.3)  # 32lbs * kg per pound
 LOOP_TIME  = 0.13                       #  seconds, 20ms + 110ms sprk max velocity lag
 MAX_SPEED  = units.feetToMeters(14.5)   #  Maximum speed of the robot in meters per second, used to limit acceleration.
 
-D_CORAL_INTAKE_SPEED = 0.1
-D_SHOOT_SPEED = 0.5
 D_ALGE_INTAKE_SPEED = -0.25
-D_ALGE_HOLD_SPEED = -0.05
-D_ALGE_GRABBER_GRAB = -0.25
-D_ALGE_GRABBER_HOLD = -0.05
-D_ALGE_GRABBER_SHOOT = 0.25
 I_INTAKE_EXTEND_MAX = 100
 
-EL_POS_L0 = PositionVoltage(0.0, slot=0)
-EL_POS_L1 = PositionVoltage(0.0, slot=0)
-EL_POS_L2 = PositionVoltage(0.0, slot=0)
-EL_POS_L3 = PositionVoltage(0.0, slot=0)
-EL_POS_IN = PositionVoltage(0.0, slot=0)
-
-I_ALGE_ROTATION_IN = 0
-I_ALGE_ROTATION_OUT = 1
 
 
 # class DrivebaseConstants:
