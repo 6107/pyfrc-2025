@@ -20,34 +20,33 @@
 # Open Source Software; you can modify and/or share it under the terms of
 # the WPILib BSD license file in the root directory of this project.
 #
-
-from __future__ import annotations
-
-import typing
+from typing import List, Tuple, Optional, Callable
 
 import commands2
 from commands2 import InstantCommand
 from wpilib import SmartDashboard, DriverStation
 from wpimath.geometry import Pose2d, Rotation2d, Translation2d
 
-from frc_2025.reefscape import FIELD_X_SIZE as FIELD_WIDTH
-from frc_2025.reefscape import FIELD_Y_SIZE as FIELD_LENGTH
-from lib_6107.commands.aimtodirection import AimToDirection
-from lib_6107.commands.gotopoint import GoToPoint
-from lib_6107.commands.swervetopoint import SwerveToPoint
+from frc_2025.subsystems.swervedrive.constants import DriveConstants, AutoConstants
+from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem
+from lib_6107.commands.drivetrain.aimtodirection import AimToDirection
+from lib_6107.commands.drivetrain.gotopoint import GoToPoint
+from lib_6107.commands.drivetrain.swervetopoint import SwerveToPoint
 
+FIELD_WIDTH = 8.052
+FIELD_LENGTH = 17.55
 U_TURN = Rotation2d.fromDegrees(180)
 
 
 class JerkyTrajectory(commands2.Command):
     def __init__(
             self,
-            drivetrain: 'DriveSubsystem',
+            drivetrain: DriveSubsystem,
             endpoint: Pose2d | Translation2d | tuple | list | None,
-            waypoints: typing.List[Pose2d | Translation2d | tuple | list] = (),
+            waypoints: List[Pose2d | Translation2d | tuple | list] = (),
             swerve: bool | str = False,
             speed=1.0,
-            setup: typing.Optional[typing.Callable[[], None]] = None,
+            setup: Optional[Callable[[], None]] = None,
             stopAtEnd: bool = True,
             flipIfRed: bool = False,
     ):
@@ -78,7 +77,6 @@ class JerkyTrajectory(commands2.Command):
         self.waypoints = [self._makeWaypoint(w) for w in waypoints]
         if endpoint is not None:
             self.waypoints += [self._makeWaypoint(endpoint)]
-
         assert len(self.waypoints) > 0
         self.command = None
 
@@ -263,7 +261,6 @@ class SwerveTrajectory(JerkyTrajectory):
         endPt, endHeading = waypoints[-1]
 
         import math
-        from frc_2025.subsystems.swervedrive.constants import DriveConstants, AutoConstants
         from wpimath.trajectory import TrajectoryConfig, TrajectoryGenerator
         from wpimath.controller import PIDController, ProfiledPIDControllerRadians, HolonomicDriveController
 
@@ -341,7 +338,6 @@ class SwerveTrajectory(JerkyTrajectory):
 
         self._showTrajectory(waypoints)
 
-
 def mirror(waypoints, width=FIELD_WIDTH):
     """
     Converts right-side trajectory into left-side trajectory
@@ -374,7 +370,7 @@ def mirror(waypoints, width=FIELD_WIDTH):
     return result
 
 
-def _flipWaypoint(waypoint, width=FIELD_WIDTH, length=FIELD_LENGTH) -> typing.Tuple[Translation2d, Rotation2d]:
+def _flipWaypoint(waypoint, width=FIELD_WIDTH, length=FIELD_LENGTH) -> Tuple[Translation2d, Rotation2d]:
     translation, rotation = waypoint
     translation = Translation2d(length - translation.x, width - translation.y)
     if rotation is not None:

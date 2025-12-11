@@ -24,9 +24,10 @@ import math
 import typing
 
 import commands2
-from frc_2025.subsystems.swervedrive.constants import AutoConstants
 from wpilib import SmartDashboard
 from wpimath.geometry import Rotation2d
+
+from frc_2025.subsystems.swervedrive.constants import AutoConstants
 
 
 class AimToDirectionConstants:

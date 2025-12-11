@@ -17,22 +17,29 @@
 
 import logging
 import platform
-from typing import List, Optional, Callable
-
 import time
+from typing import List, Optional, Callable, Dict, Any
+
 from commands2 import Subsystem, Command, RunCommand, InstantCommand, cmd, button
 from wpilib import RobotBase, XboxController, SmartDashboard, SendableChooser, Field2d, DriverStation
+from wpimath.geometry import Translation3d, Rotation2d
 
 from frc_2025 import constants
 from frc_2025.commands.holonomicdrive import HolonomicDrive
 from frc_2025.subsystems.alge_subsystem import AlgeSubsystem, AlgeRoller, AlgeRotation
-from frc_2025.subsystems.constants import DeviceID
+from frc_2025.subsystems.constants import DeviceID, k_has_front_camera, k_use_vision_odometry
 from frc_2025.subsystems.coral_intake import LeftCoralIntake, RightCoralIntake, ExtendCoralIntake
 from frc_2025.subsystems.elevator_subsystem import Elevator
 from frc_2025.subsystems.swervedrive.constants import OIConstants
 from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem
-from lib_6107.commands.reset_xy import ResetXY
-from lib_6107.commands.trajectory import SwerveTrajectory
+from lib_6107.commands.camera.follow_object import FollowObject, StopWhen
+from lib_6107.commands.drivetrain.aimtodirection import AimToDirection
+from lib_6107.commands.drivetrain.arcade_drive import ArcadeDrive
+from lib_6107.commands.drivetrain.reset_xy import ResetXY
+from lib_6107.commands.drivetrain.trajectory import SwerveTrajectory
+# from lib_6107.subsystems.photonvision_camera import PhotonVisionCamera
+from lib_6107.subsystems.limelight_camera import LimelightCamera
+from lib_6107.subsystems.limelight_localizer import LimelightLocalizer
 
 # TODO: path planner stuff needed?
 
@@ -67,10 +74,37 @@ class RobotContainer:
         ########################################################
         # Subsystem initialization
         #
+        # Vision support
+        camera_subsystems = []
+        self.front_camera = None
+        self.localizer = None
+        self.vision_odometry = False
+        drive_kwargs: Dict[str, Any] = {}
+
+        if k_has_front_camera:
+            # Primary camera
+            drive_kwargs["Cameras"] = {}
+
+            front = drive_kwargs["Cameras"]["Front"]
+
+            # self.front_camera = PhotonVisionCamera("front-camera") if k_has_front_camera else None
+            self.front_camera = LimelightCamera("front-camera")
+            front["Camera"] = self.front_camera
+            camera_subsystems.append(self.front_camera)
+
+            if k_use_vision_odometry:
+                # TODO: Make pose and heading below as constants
+                self.localizer = LimelightLocalizer(self)
+                self.localizer.addCamera(self.front_camera,
+                                         cameraPoseOnRobot=Translation3d(x=0.40, y=-0.15, z=0.5),
+                                         cameraHeadingOnRobot=Rotation2d.fromDegrees(0.0))
+                front["Localizer"] = self.localizer
+                camera_subsystems.append(self.localizer)
+
         # # From the 2025 Java (TODO: Get the JSON files from swerve/neo and update our python code/validate it)
         # filePath = os.path.join(getDeployDirectory(), "swerve/neo")
         # self.robot_drive = SwerveSubsystem(filePath)
-        self.robot_drive = DriveSubsystem(self)
+        self.robot_drive = DriveSubsystem(self, **drive_kwargs)
 
         # TODO: Create subsystems for the following and then commands instead of the periodic check
         self._elevator: Subsystem = Elevator(DeviceID.ELEVATOR_DEVICE_ID,
@@ -88,7 +122,7 @@ class RobotContainer:
         # as needed, but having our own list (iterated in order) allows us to move much of
         # the other subsystem 'tasks' into a generic loop.
 
-        self.subsystems: List[Subsystem] = [
+        self.subsystems: List[Subsystem] = camera_subsystems + [
             self.robot_drive,
             self._elevator,
             self._alge_subsystem,  # Alge should always be called before intake logic
@@ -315,9 +349,16 @@ class RobotContainer:
         self.chosenAuto.setDefaultOption("trajectory example", self.getAutonomousTrajectoryExample)
         self.chosenAuto.addOption("left blue", self.getAutonomousLeftBlue)
         self.chosenAuto.addOption("left red", self.getAutonomousLeftRed)
+
+        # If vision based odometry is supported, add in their auto commands
+        if self.vision_odometry:
+            # TODO: would be a good thing to add into kwargs passed in or do something with
+            #       the subsystems class we want to derive
+            self.chosenAuto.addOption("Approach tag", self.getApproachTagCommand)
+
         SmartDashboard.putData("Chosen Auto", self.chosenAuto)
 
-    def getAutonomousLeftBlue(self):
+    def getAutonomousLeftBlue(self) -> Command:
         setStartPose = ResetXY(x=0.783, y=6.686, heading_degrees=+60, drivetrain=self.robot_drive)
         driveForward = RunCommand(lambda: self.robot_drive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robot_drive)
         stop = InstantCommand(lambda: self.robot_drive.arcadeDrive(0, 0))
@@ -325,13 +366,42 @@ class RobotContainer:
         command = setStartPose.andThen(driveForward.withTimeout(1.0)).andThen(stop)
         return command
 
-    def getAutonomousLeftRed(self):
+    def getAutonomousLeftRed(self) -> Command:
         setStartPose = ResetXY(x=15.777, y=4.431, heading_degrees=-120, drivetrain=self.robot_drive)
         driveForward = RunCommand(lambda: self.robot_drive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robot_drive)
         stop = InstantCommand(lambda: self.robot_drive.arcadeDrive(0, 0))
 
         command = setStartPose.andThen(driveForward.withTimeout(2.0)).andThen(stop)
         return command
+
+    def getApproachTagCommand(self) -> Command:
+        # Approach until the tag takes up 8% of the screen, then drive just a little bit more
+        # to compress the robot against the wall the tag is on.
+
+        set_start_pose = ResetXY(x=8.7, y=7.3, heading_degrees=-180, drivetrain=self.robot_drive)
+
+        trajectory = JerkyTrajectory(drivetrain=self.robot_drive,
+                                     endpoint=(2.59, 3.99, 0),
+                                     waypoints=[
+                                         (0.775, 7.26, 180),
+                                         (6.5, 7.26, -178),
+                                         (3.6, 7.1, -175),
+                                         (2.17, 5.5, -101)
+                                     ],
+                                     speed=0.2)  # TODO: Increase speed once we know it works as expected
+
+        follow_tag = FollowObject(self.front_camera, self.robot_drive,
+                                  stepSeconds=0.33,
+                                  stopWhen=StopWhen(maxSize=8.0),
+                                  speed=0.2)  # TODO: Increase speed once we know it works as expected
+
+        drive_forward = ArcadeDrive(driveSpeed=0.15, rotationSpeed=0.0,
+                                    drivetrain=self.robot_drive).withTimeout(0.3)  # Keep speed low here..
+
+        # Drop corral command (not yet coded)
+        drop_corral = None
+
+        return set_start_pose.andThen(trajectory).andThen(follow_tag).andThen(drive_forward).andThen(drop_corral)
 
     def getAutonomousTrajectoryExample(self) -> Command:
         command = SwerveTrajectory(
@@ -345,7 +415,7 @@ class RobotContainer:
             ],
             endpoint=(6.0, 4.0, -180),  # end point: x=6.0, y=4.0, heading=180 degrees (South)
             flipIfRed=False,  # if you want the trajectory to flip when team is red, set =True
-            stopAtEnd=True,  # to keep driving onto next command, set =False
+            stopAtEnd=True  # to keep driving onto next command, set =False
         )
         return command
 

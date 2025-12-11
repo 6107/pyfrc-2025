@@ -28,8 +28,8 @@ from wpilib import SmartDashboard
 from wpimath.geometry import Rotation2d, Translation2d, Pose2d
 
 from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem
-from lib_6107.commands.aimtodirection import AimToDirectionConstants
-from lib_6107.commands.gotopoint import GoToPointConstants
+from lib_6107.commands.drivetrain.aimtodirection import AimToDirectionConstants
+from lib_6107.commands.drivetrain.gotopoint import GoToPointConstants
 
 
 class SwerveToPoint(commands2.Command):

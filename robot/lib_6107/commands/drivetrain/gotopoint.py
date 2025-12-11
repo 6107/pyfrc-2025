@@ -29,7 +29,7 @@ from wpimath.geometry import Rotation2d, Translation2d
 
 from frc_2025.subsystems.swervedrive.constants import AutoConstants
 from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem, DriveConstants
-from lib_6107.commands.aimtodirection import AimToDirectionConstants
+from lib_6107.commands.drivetrain.aimtodirection import AimToDirectionConstants
 
 
 class GoToPointConstants:

@@ -16,9 +16,9 @@
 # ------------------------------------------------------------------------ #
 
 import logging
+import math
 from typing import Callable, Tuple, Optional, List, Dict, Union, Any
 
-import math
 import navx
 import ntcore
 import robotpy_apriltag as apriltag
@@ -107,15 +107,29 @@ logger = logging.getLogger(__name__)
 
 class DriveSubsystem(Subsystem):
     def __init__(self, container: 'RobotContainer',
-                 maxSpeedScaleFactor: Optional[Callable[[None], float]] = None) -> None:
+                 maxSpeedScaleFactor: Optional[Callable[[None], float]] = None,
+                 **kwargs: Optional[Dict[str, Any]]) -> None:
         super().__init__()
         if maxSpeedScaleFactor is not None:
             assert callable(maxSpeedScaleFactor)
 
         self._container = container
         self._robot = container.robot
-        self.vision_supported = constants.k_use_vision_odometry
-        self.field_relative = True
+
+        # Camera/localizer defaults
+        self.front_camera = None
+        self.vision_odometry = False
+        self.field_relative = False
+
+        cameras: Dict[str, Any] = kwargs.get("Cameras")
+        if cameras is not None and "Front" in cameras:
+            self.front_camera = cameras["Front"]["Camera"]
+
+            localizer = cameras["Front"].get("Localizer")
+            if localizer:
+                self.vision_odometry = True
+                self.field_relative = True
+                self.localizer = localizer
 
         self.maxSpeedScaleFactor: Optional[Callable[[None], float]] = maxSpeedScaleFactor
 
@@ -221,7 +235,7 @@ class DriveSubsystem(Subsystem):
         self.pose_estimator = None
         self.inst = None
 
-        if not self.vision_supported or RobotBase.isSimulation():
+        if not self.vision_odometry or RobotBase.isSimulation():
             # The robots movements are commanded based on the fixed coordinate system of the competition field
             self.field_relative = True
 
@@ -242,6 +256,7 @@ class DriveSubsystem(Subsystem):
             # The robots movements are commanded based on the robot's own orientation
             self.field_relative = False
             self._init_vision_odometry()
+
             # self.field = self.quest_field
             self._robot.field = self.quest_field
 
@@ -449,6 +464,25 @@ class DriveSubsystem(Subsystem):
         """
         Configure the driver and shooter joystick controls here
         """
+        if self.front_camera is not None and self.self.localizer is not None:
+            def turn_to_object() -> None:
+                """
+                This command is used to have the robot camera
+
+                If you want the robot to slowly chase that object... replace the 'self.rotate'
+                line belwo with: self.arcadeDrive(0.1, turn_speed)
+
+                """
+                x = self.front_camera.getX()
+                turn_speed = -0.01 * x
+                self.rotate(turn_speed)
+
+            # TODO: Make the button assignment come from a constants.py file / list somewhere.
+            #       so we can keep track what is assigned
+            # button = self.driverController.button(XboxController.Button.kB)
+            # button.whileTrue(RunCommand(turn_to_object, self))
+            # button.onFalse(InstantCommand(lambda: self.drive(0, 0, 0,
+
         pass  # TODO: Add me
 
     def periodic(self) -> None:
@@ -521,7 +555,7 @@ class DriveSubsystem(Subsystem):
                                  ts)  # this one we actually do every time TODO - see if this is done by wpilib and use it instead
 
         # use this if we have a phononvision camera - which we don't as of 20250316
-        if self.vision_supported and RobotBase.isReal() and self.use_photoncam:  # sim complains if you don't set up a sim photoncam
+        if self.vision_odometry and RobotBase.isReal() and self.use_photoncam:  # sim complains if you don't set up a sim photoncam
             has_photontag = self.photoncam_target_subscriber.get()
             # has_photontag = self.photoncam_target_subscriber.get()
             # how do we get the time offset and standard deviation?
@@ -577,7 +611,7 @@ class DriveSubsystem(Subsystem):
                 else:
                     SmartDashboard.putNumber('photoncam_ambiguity', 997)
 
-        if self.vision_supported and self.use_quest and self.quest_has_synched and self.counter % 5 == 0:
+        if self.vision_odometry and self.use_quest and self.quest_has_synched and self.counter % 5 == 0:
             # print('quest pose synced')
             quest_accepted = SmartDashboard.getBoolean("QUEST_POSE_ACCEPTED", False)
             quest_pose = self.questnav.get_pose().transformBy(self.quest_to_robot)
@@ -586,7 +620,7 @@ class DriveSubsystem(Subsystem):
                 self.pose_estimator.addVisionMeasurement(quest_pose, Timer.getFPGATimestamp(),
                                                          constants.DrivetrainConstants.k_pose_stdevs_disabled)
 
-        if self.vision_supported and self.use_CJH_apriltags:  # loop through all of our subscribers above
+        if self.vision_odometry and self.use_CJH_apriltags:  # loop through all of our subscribers above
             for count_subscriber, pose_subscriber in zip(self.count_subscribers, self.pose_subscribers):
                 # print(f"count subscriber says it has {count_subscriber.get()} tags")
                 if count_subscriber.get() > 0:  # use this camera's tag
@@ -615,7 +649,7 @@ class DriveSubsystem(Subsystem):
                         self.pose_estimator.addVisionMeasurement(tag_pose, tag_data[0], sdevs)
 
         # Update the odometry in the periodic block -
-        if self.vision_supported and RobotBase.isReal():
+        if self.vision_odometry and RobotBase.isReal():
             # self.odometry.update(Rotation2d.fromDegrees(self.get_angle()), self.get_module_positions(),)
             self.pose_estimator.updateWithTime(Timer.getFPGATimestamp(),
                                                Rotation2d.fromDegrees(self.get_gyro_angle()),
@@ -625,7 +659,7 @@ class DriveSubsystem(Subsystem):
         # TODO: if we want to be cool and have spare time, we could use SparkBaseSim with FlywheelSim to do
         # actual physics simulation on the swerve modules instead of assuming perfect behavior
 
-        if self.vision_supported and self.counter % 10 == 0:
+        if self.vision_odometry and self.counter % 10 == 0:
             pose = self.get_pose()  # self.odometry.getPose()
             if True:  # RobotBase.isReal():  # update the NT with odometry for the dashboard - sim will do its own
                 SmartDashboard.putNumberArray('drive_pose', [pose.X(), pose.Y(), pose.rotation().degrees()])
@@ -668,7 +702,7 @@ class DriveSubsystem(Subsystem):
                 # SmartDashboard.putNumberArray(f'_analog_radians', absolutes)
 
         # Import pose from QuestNav.
-        if self.vision_supported:
+        if self.vision_odometry:
             self.quest_periodic()
 
     def sim_init(self, physics_controller: 'PhysicsInterface') -> None:
@@ -821,7 +855,7 @@ class DriveSubsystem(Subsystem):
         Currently just used in simulation
         """
         if RobotBase.isSimulation():
-            if self.vision_supported:
+            if self.vision_odometry:
                 self.pose_estimator.resetPosition(gyroAngle=rotation, wheelPositions=wheel_positions, pose=pose)
             else:
                 self.odometry.resetPosition(gyroAngle=rotation, wheelPositions=wheel_positions, pose=pose)
@@ -832,7 +866,7 @@ class DriveSubsystem(Subsystem):
         :param pose: The pose to which to set the odometry.
 
         """
-        if self.vision_supported:
+        if self.vision_odometry:
             self.pose_estimator.resetPosition(Rotation2d.fromDegrees(self.get_gyro_angle()),
                                               self.get_module_positions(),
                                               pose)
@@ -1332,7 +1366,7 @@ class DriveSubsystem(Subsystem):
         return [module.getDesiredState() for module in self.swerve_modules]
 
     def quest_periodic(self) -> None:
-        if not self.vision_supported:
+        if not self.vision_odometry:
             return
 
         self.questnav.command_periodic()

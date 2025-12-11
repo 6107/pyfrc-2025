@@ -64,6 +64,7 @@ EL_POS_IN = PositionVoltage(0.0, slot=0)
 k_start_x = 0
 k_start_y = 0
 
+k_has_front_camera = False
 k_use_vision_odometry = False
 
 k_swerve_debugging_messages = True

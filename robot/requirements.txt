@@ -23,6 +23,7 @@ robotpy-navx
 robotpy-rev
 phoenix6
 photonlibpy
+pyntcore
 certifi
 
 

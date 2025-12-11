@@ -43,7 +43,8 @@ robotpy_extras = [
 # Other pip packages to install
 requires = [
     "pynetworktables",
-    "photonlibpy"
+    "photonlibpy",
+    "pyntcore"
 ]
 
 # List of paths to include
