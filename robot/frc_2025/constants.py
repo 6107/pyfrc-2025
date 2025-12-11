@@ -36,12 +36,12 @@ OTEL_OLTP_ENDPOINT = os.getenv("OTEL_OLTP_ENDPOINT", default="supermicro:4317")
 ROBOT_MASS = units.lbsToKilograms(148 - 20.3)  # 32lbs * kg per pound
 # CHASSIS    = Matter(geometry.Translation3d(0, 0, units.inchesToMeters(8)), ROBOT_MASS)        TODO: Figure this out
 LOOP_TIME  = 0.13                       #  seconds, 20ms + 110ms sprk max velocity lag
-MAX_SPEED  = units.feetToMeters(14.5)   #  Maximum speed of the robot in meters per second, used to limit acceleration.
 
-D_ALGE_INTAKE_SPEED = -0.25
+# Maximum speed of the robot in meters per second, used to limit acceleration.
+#    1.45 feet is 4.4196 meters
+MAX_SPEED = units.feetToMeters(14.5)
+
 I_INTAKE_EXTEND_MAX = 100
-
-
 
 # class DrivebaseConstants:
     # Hold time on motor brakes when disabled

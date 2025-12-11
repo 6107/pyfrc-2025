@@ -36,7 +36,7 @@ from wpimath.geometry import Transform2d, Transform3d, Translation3d, Rotation3d
     Pose3d, Rotation2d, Translation2d, Pose2d
 from wpimath.kinematics import ChassisSpeeds, SwerveModuleState, SwerveDrive4Kinematics, \
     SwerveDrive4Odometry, SwerveModulePosition
-from wpimath.units import degrees, degrees_per_second
+from wpimath.units import degrees, degrees_per_second, inchesToMeters
 
 from frc_2025.reefscape import RED_TEST_POSE, BLUE_TEST_POSE
 from frc_2025.subsystems import constants
@@ -236,8 +236,8 @@ class DriveSubsystem(Subsystem):
 
             # Register for any changes in alliance before the match starts
             container.register_alliance_change_callback(self._alliance_change)
-            self._alliance_change(container.is_red_alliance)
-
+            self._alliance_change(container.is_red_alliance,
+                                  container.alliance_location)
         else:
             # The robots movements are commanded based on the robot's own orientation
             self.field_relative = False
@@ -282,7 +282,7 @@ class DriveSubsystem(Subsystem):
         else:
             raise NotImplementedError(f"Unsupported IMU/Gyro type: {DriveConstants.GYRO_TYPE}")
 
-    def _init_vision_odometry(self):
+    def _init_vision_odometry_photoncam(self):
         # TODO: Below is code from team 2429 where they use vision to estimate position.
         # TODO: May be better derive a new class for this
         # 2024 - orphan the old odometry, now use the vision enabled version of odometry instead
@@ -429,14 +429,14 @@ class DriveSubsystem(Subsystem):
                                           InstantCommand(lambda: self.quest_sync_toggle()).ignoringDisable(True))
             # end of init
 
-    def _alliance_change(self, is_red: bool) -> None:
+    def _alliance_change(self, is_red: bool, location: int) -> None:
         """
         Change in alliance occurred before match started. If simulation is
         supported, then 'physics.py' handles this.
         """
         if RobotBase.isSimulation():
             # Use test subsystem settings if simulation
-            initial_pose = RED_TEST_POSE if is_red else BLUE_TEST_POSE
+            initial_pose = RED_TEST_POSE[location] if is_red else BLUE_TEST_POSE[location]
             self.resetOdometry(initial_pose)
 
     def initialize_dashboard(self) -> None:
@@ -716,7 +716,8 @@ class DriveSubsystem(Subsystem):
             }
 
         # set up the initial location of the robot on the field
-        self._alliance_change(self._container.is_red_alliance)
+        self._alliance_change(self._container.is_red_alliance,
+                              self._container.alliance_location)
 
     def simulationPeriodic(self, **kwargs) -> Optional[float]:
         """
@@ -803,7 +804,7 @@ class DriveSubsystem(Subsystem):
             self._gyro.zeroYaw()  # we boot up at zero degrees  - note - you can't reset this while calibrating
 
             if RobotBase.isSimulation():
-                gyro = SimDeviceSim("navX-Sensor[4]")
+                gyro = simulation.SimDeviceSim("navX-Sensor[4]")
                 gyro_yaw = gyro.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
                 # gyro_angle = gyro.getDouble("Angle")
                 # gyro_angle.set(0.0)

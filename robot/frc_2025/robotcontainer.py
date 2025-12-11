@@ -55,7 +55,8 @@ class RobotContainer:
 
         # Alliance support
         self._is_red_alliance: bool = False  # Coordinate system based off of blue being to the 'left'
-        self._alliance_change_callbacks: List[Callable[[bool], None]] = []
+        self._alliance_location: int = 1  # Valid numbers are 1, 2, 3
+        self._alliance_change_callbacks: List[Callable[[bool, int], None]] = []
 
         # The driver's controller
         self.driver_controller = button.CommandXboxController(constants.kDriverControllerPort)
@@ -176,6 +177,15 @@ class RobotContainer:
         return self.robot.field
 
     @property
+    def alliance_location(self) -> int:
+        """
+        Alliance location/position as defined by FMS or chooser.
+
+        Valid values are 1, 2, 3.
+        """
+        return self._alliance_location
+
+    @property
     def is_red_alliance(self) -> bool:
         """
         Are we in the red alliance?
@@ -197,15 +207,25 @@ class RobotContainer:
         if not self.robot.match_started:
             # Note that if 'None' is returned for the alliance, we assume Blue
             is_red = DriverStation.getAlliance() == DriverStation.Alliance.kRed
+            location = DriverStation.getLocation()
 
-            if self._is_red_alliance != is_red:
+            # Do not change location if not valid
+            if location not in (1, 2, 3):
+                if location is not None:
+                    logger.error(f"Invalid alliance location value: {location}")
+
+                location = self._alliance_location
+
+            if self._is_red_alliance != is_red or self._alliance_location != location:
                 # Change of alliance. Update any subsystem or other object that needs
                 # to know.
                 self._is_red_alliance = is_red
-                for callback in self._alliance_change_callbacks:
-                    callback(is_red)
+                self._alliance_location = location
 
-    def register_alliance_change_callback(self, callback: Callable[[bool], None]) -> None:
+                for callback in self._alliance_change_callbacks:
+                    callback(is_red, location)
+
+    def register_alliance_change_callback(self, callback: Callable[[bool, int], None]) -> None:
         """
         For subsystems and objects that need to know about alliance changes before the
         match begins.
@@ -283,7 +303,7 @@ class RobotContainer:
 
     def configureAutos(self):
         """
-        Implement a dashboard 'Chosen" dialog that allows us to select which 'automation'
+        Implement a dashboard "'"Chosen" dialog that allows us to select which 'automation'
         commands to run when we enter the Autonomous phase.
         """
         self.chosenAuto = SendableChooser()

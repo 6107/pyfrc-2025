@@ -69,7 +69,8 @@ class PhysicsEngine:
 
         # Register for any changes in alliance before the match starts
         robot.container.register_alliance_change_callback(self._alliance_change)
-        self._alliance_change(self._robot.container.is_red_alliance)
+        self._alliance_change(self._robot.container.is_red_alliance,
+                              self._robot.container.alliance_location)
 
         # TODO: If vision odometry is supported in simulation, this may need to be
         #       changed to the robot's field view and not the 'overhead' view of the
@@ -104,9 +105,9 @@ class PhysicsEngine:
 
         # TODO: update simulated battery with amps consumed if real robo rio has a battery monitor as well
 
-    def _alliance_change(self, is_red: bool) -> None:
+    def _alliance_change(self, is_red: bool, location: int) -> None:
         """
         Called whenever the alliance changes colors before the match / competition begins
         """
-        initial_pose = RED_TEST_POSE if is_red else BLUE_TEST_POSE
+        initial_pose = RED_TEST_POSE[location] if is_red else BLUE_TEST_POSE[location]
         self._physics_controller.field.setRobotPose(initial_pose)
