@@ -32,7 +32,6 @@ from wpimath.trajectory import TrapezoidProfileRadians
 class NeoMotorConstants:
     kFreeSpeedRpm = 5676
 
-
 class DriveConstants:
     # Driving Parameters - Note that these are not the maximum capable speeds of
     # the robot, rather the allowed maximum speeds
@@ -68,26 +67,18 @@ class DriveConstants:
     kBackRightChassisAngularOffset = math.pi / 2
 
     # SPARK MAX Parmeters
-    kFrontLeftDrivingCanId = 22
-    kFrontLeftTurningCanId = 21
     kFrontLeftAngularOffset = 156.445
     kFrontLeftDriveMotorInverted = False
     kFrontLeftTurningMotorInverted = False
 
-    kFrontRightDrivingCanId = 24
-    kFrontRightTurningCanId = 23
     kFrontRightAngularOffset = 30.498
     kFrontRightDriveMotorInverted = False
     kFrontRightTurningMotorInverted = False
 
-    kRearLeftDrivingCanId = 26
-    kRearLeftTurningCanId = 25
     kRearLeftAngularOffset = 133.418
     kRearLeftDriveMotorInverted = False
     kRearLeftTurningMotorInverted = False
 
-    kRearRightDrivingCanId = 28
-    kRearRightTurningCanId = 27
     kRearRightAngularOffset = 99.404
     kRearRightDriveMotorInverted = False
     kRearRightTurningMotorInverted = False

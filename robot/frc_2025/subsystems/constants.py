@@ -17,7 +17,7 @@
 #
 # Constants for source in this subdirectory will go here
 
-from enum import IntEnum
+from enum import IntEnum, unique
 
 from phoenix6.controls.position_voltage import PositionVoltage
 
@@ -25,16 +25,36 @@ from phoenix6.controls.position_voltage import PositionVoltage
 ###############################################################################
 # 2025 Device IDS
 
+@unique
 class DeviceID(IntEnum):
+    # Other drivetrain constants are available in the swervedrive subdirectory
+    DRIVETRAIN_LEFT_FRONT_TURNING_ID = 21
+    DRIVETRAIN_LEFT_FRONT_DRIVING_ID = 22
+    DRIVETRAIN_LEFT_FRONT_ENCODER_ID = 31
+
+    DRIVETRAIN_RIGHT_FRONT_TURNING_ID = 23
+    DRIVETRAIN_RIGHT_FRONT_DRIVING_ID = 24
+    DRIVETRAIN_RIGHT_FRONT_ENCODER_ID = 32
+
+    DRIVETRAIN_LEFT_REAR_TURNING_ID = 25
+    DRIVETRAIN_LEFT_REAR_DRIVING_ID = 26
+    DRIVETRAIN_LEFT_REAR_ENCODER_ID = 33
+
+    DRIVETRAIN_RIGHT_REAR_TURNING_ID = 27
+    DRIVETRAIN_RIGHT_REAR_DRIVING_ID = 28
+    DRIVETRAIN_RIGHT_REAR_ENCODER_ID = 34
+
+    # Elevator
     ELEVATOR_DEVICE_ID = 10
 
+    # Alge Subsystem
     ALGE_ROLLER_DEVICE_ID = 11
     ALGE_ROTATION_DEVICE_ID = 12
 
+    # Coral Subsystem
     INTAKE_LEFT_DEVICE_ID = 13
     INTAKE_RIGHT_DEVICE_ID = 14
     INTAKE_EXTEND_DEVICE_ID = 15
-
 
 #########################
 # Intake constants
