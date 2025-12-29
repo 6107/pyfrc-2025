@@ -15,17 +15,17 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 
-robotpy             == 2025.3.2.2   # Main module and CLI for the robotics platform
-robotpy-apriltag                    # Not part of actual FRC robot, but we want to test  with it
-robotpy-commands-v2
-robotpy-pathplannerlib
-robotpy-navx
-robotpy-rev
-phoenix6
-photonlibpy
-pyntcore
-certifi
-
+robotpy                 == 2025.3.2.2   # Main module and CLI for the robotics platform
+robotpy-apriltag        == 2025.3.2.2
+robotpy-commands-v2     == 2025.3.2
+robotpy-pathplannerlib  == 2025.2.7
+robotpy-navx            == 2025.0.1.2
+robotpy-rev             == 2025.0.3.1
+phoenix6                == 25.4.2
+photonlibpy             == 2026.0.1
+pyntcore                == 2025.3.2.2
+certifi                 == 2025.11.12
+pynetworktables         == 2021.0.0
 
 # ###############################################################################
 # # Following are for OpenTelemetry support. None of the files below

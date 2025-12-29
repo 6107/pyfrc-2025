@@ -19,12 +19,14 @@ import math
 from typing import Union
 
 import wpilib
-from frc_2025.subsystems.swervedrive.constants import ModuleConstants, getSwerveDrivingMotorConfig, \
-    getSwerveTurningMotorConfig, DriveConstants
+from phoenix6.hardware import CANcoder
 from rev import SparkMax, SparkFlex, SparkLowLevel, SparkBase
 from wpilib import AnalogPotentiometer, RobotBase
 from wpimath.geometry import Rotation2d
 from wpimath.kinematics import SwerveModuleState, SwerveModulePosition
+
+from frc_2025.subsystems.swervedrive.constants import ModuleConstants, getSwerveDrivingMotorConfig, \
+    getSwerveTurningMotorConfig, DriveConstants
 
 
 class MAXSwerveModule:
@@ -34,6 +36,7 @@ class MAXSwerveModule:
                  turnMotorInverted: bool = True,
                  motorControllerType: Union[type(SparkFlex), type(SparkMax)] = SparkFlex,
                  encoder_analog_port: int = -1,
+                 cancoder_device_id: int = -1,
                  turning_encoder_offset: float = 0.0,
                  label: str = ""):
         """
@@ -47,6 +50,12 @@ class MAXSwerveModule:
 
         self.drivingSparkMax = motorControllerType(drivingCANId, SparkLowLevel.MotorType.kBrushless)
         self.turningSparkMax = motorControllerType(turningCANId, SparkLowLevel.MotorType.kBrushless)
+
+        # TODO: Java code passed in Cancoder for each module but there was also a single
+        #       phoenix6 Pigeon2 installed.
+        #
+        # TODO: Currently we do not do anything with this object. Ask Patrick if we see him.
+        self.cancorder = CANcoder(cancoder_device_id) if cancoder_device_id >= 0 else None
 
         # Factory reset, so we get the SPARKS MAX to a known state before configuring
         # them. This is useful in case a SPARK MAX is swapped out.

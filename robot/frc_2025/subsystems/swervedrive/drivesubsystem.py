@@ -40,6 +40,7 @@ from wpimath.units import degrees, degrees_per_second, inchesToMeters
 
 from frc_2025.reefscape import RED_TEST_POSE, BLUE_TEST_POSE
 from frc_2025.subsystems import constants
+from frc_2025.subsystems.constants import DeviceID
 from frc_2025.subsystems.swervedrive import swerveutils
 from frc_2025.subsystems.swervedrive.constants import DriveConstants
 from frc_2025.subsystems.swervedrive.maxswervemodule import MAXSwerveModule
@@ -141,46 +142,57 @@ class DriveSubsystem(Subsystem):
 
         # Create MAXSwerveModules
         self.frontLeft = MAXSwerveModule(
-            DriveConstants.kFrontLeftDrivingCanId,
-            DriveConstants.kFrontLeftTurningCanId,
+            DeviceID.DRIVETRAIN_LEFT_FRONT_DRIVING_ID,
+            DeviceID.DRIVETRAIN_LEFT_FRONT_TURNING_ID,
             DriveConstants.kFrontLeftAngularOffset,
             driveMotorInverted=DriveConstants.kFrontLeftDriveMotorInverted,
             turnMotorInverted=DriveConstants.kFrontLeftTurningMotorInverted,
             motorControllerType=SparkMax,
+            cancoder_device_id=DeviceID.DRIVETRAIN_LEFT_FRONT_ENCODER_ID,
             label="lf"
         )
 
         self.frontRight = MAXSwerveModule(
-            DriveConstants.kFrontRightDrivingCanId,
-            DriveConstants.kFrontRightTurningCanId,
+            DeviceID.DRIVETRAIN_RIGHT_FRONT_DRIVING_ID,
+            DeviceID.DRIVETRAIN_RIGHT_FRONT_TURNING_ID,
             DriveConstants.kFrontRightChassisAngularOffset * enabledChassisAngularOffset,
             driveMotorInverted=DriveConstants.kFrontRightDriveMotorInverted,
             turnMotorInverted=DriveConstants.kFrontRightTurningMotorInverted,
             motorControllerType=SparkMax,
+            cancoder_device_id=DeviceID.DRIVETRAIN_RIGHT_FRONT_ENCODER_ID,
             label="rf"
         )
 
         self.rearLeft = MAXSwerveModule(
-            DriveConstants.kRearLeftDrivingCanId,
-            DriveConstants.kRearLeftTurningCanId,
+            DeviceID.DRIVETRAIN_LEFT_REAR_DRIVING_ID,
+            DeviceID.DRIVETRAIN_LEFT_REAR_TURNING_ID,
             DriveConstants.kRearLeftAngularOffset,
             driveMotorInverted=DriveConstants.kRearLeftDriveMotorInverted,
             turnMotorInverted=DriveConstants.kRearLeftTurningMotorInverted,
             motorControllerType=SparkMax,
+            cancoder_device_id=DeviceID.DRIVETRAIN_LEFT_REAR_ENCODER_ID,
             label="lb"
         )
 
         self.rearRight = MAXSwerveModule(
-            DriveConstants.kRearRightDrivingCanId,
-            DriveConstants.kRearRightTurningCanId,
+            DeviceID.DRIVETRAIN_RIGHT_REAR_DRIVING_ID,
+            DeviceID.DRIVETRAIN_RIGHT_REAR_TURNING_ID,
             DriveConstants.kRearRightAngularOffset,
             driveMotorInverted=DriveConstants.kRearRightDriveMotorInverted,
             turnMotorInverted=DriveConstants.kRearRightTurningMotorInverted,
             motorControllerType=SparkMax,
+            cancoder_device_id=DeviceID.DRIVETRAIN_RIGHT_REAR_ENCODER_ID,
             label="rb"
         )
         self.swerve_modules: List[MAXSwerveModule] = [self.frontLeft, self.frontRight, self.rearLeft, self.rearRight]
 
+        # TODO: Currently only the Phoenix6 Pigeon2 is supported.  Some work had been done with the NavX
+        #       encoder, but it was not completed or tested outside of simulations/physics.  In this
+        #       initial implementation, I am using the 2025 Java YAGSL code with what the CyberJagzz
+        #       robot Java based code used.
+        #
+        # TODO: In the future, look at what the YAGSL 'SwerveIMU' class provides and create one of our
+        #       own to track it.
         # The gyro sensor
         self._gyro: Optional[Union[Any, pigeon2.Pigeon2]] = None
 
@@ -194,6 +206,7 @@ class DriveSubsystem(Subsystem):
                 self.gyro_calibrated = True
 
         elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
+            # Note: Default pigeon2 config has compass disabled. We want it that way as well.
             self._gyro: pigeon2.Pigeon2 = pigeon2.Pigeon2(DriveConstants.kGyroDeviceId)
             self._gyro.reset()
 
@@ -213,7 +226,7 @@ class DriveSubsystem(Subsystem):
         self.strafe_magLimiter = SlewRateLimiter(DriveConstants.kMagnitudeSlewRate)
         self.rotLimiter = SlewRateLimiter(DriveConstants.kRotationalSlewRate)
 
-        # TODO: original gyro attributes below
+        # TODO: original gyro attributes below from the Java 2025 code.
         self._lastGyroAngleTime = 0
         self._lastGyroAngle = 0
         self._lastGyroAngleAdjustment = 0
