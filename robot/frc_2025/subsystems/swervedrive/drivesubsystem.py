@@ -273,8 +273,6 @@ class DriveSubsystem(Subsystem):
             # self.field = self.quest_field
             self._robot.field = self.quest_field
 
-        SmartDashboard.putData("Field", self.field)
-
     @property
     def counter(self) -> int:
         return self._robot.counter
@@ -467,11 +465,37 @@ class DriveSubsystem(Subsystem):
             initial_pose = RED_TEST_POSE[location] if is_red else BLUE_TEST_POSE[location]
             self.resetOdometry(initial_pose)
 
-    def initialize_dashboard(self) -> None:
+    def dashboard_initialize(self) -> None:
         """
         Configure the SmartDashboard for this subsystem
         """
-        pass  # TODO: Add me
+        SmartDashboard.putData("Field", self.field)
+        SmartDashboard.putString('Gyro/type', DriveConstants.GYRO_TYPE)
+
+    def dashboard_periodic(self) -> None:
+        """
+        Called from periodic function to update dashboard elements for this subsystem
+        """
+        divisor = 10 if self._robot.isEnabled() else 20
+        update_dash = self._robot.counter % divisor == 0
+
+        if update_dash:
+            pose = self.get_pose()  # self.odometry.getPose()
+            SmartDashboard.putNumber("Drivetrain/x", pose.x)
+            SmartDashboard.putNumber("Drivetrain/y", pose.y)
+            SmartDashboard.putNumber("Drivetrain/heading", pose.rotation().degrees())
+
+            SmartDashboard.putNumber('keep_angle', self.keep_angle)
+
+            if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+                SmartDashboard.putNumber('Gyro/yaw', self.get_yaw())
+                SmartDashboard.putNumber('Gyro/angle1', self.get_angle())
+                SmartDashboard.putNumber('Gyro/angle2', self.get_gyro_angle())
+
+            elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
+                SmartDashboard.putNumber('Gyro/yaw', self.get_yaw())
+                SmartDashboard.putNumber('Gyro/pitch', self.get_pitch())
+                SmartDashboard.putNumber('Gyro/roll', self.get_roll())
 
     def configure_button_bindings(self, driver, shooter) -> None:
         """
@@ -483,7 +507,7 @@ class DriveSubsystem(Subsystem):
                 This command is used to have the robot camera
 
                 If you want the robot to slowly chase that object... replace the 'self.rotate'
-                line belwo with: self.arcadeDrive(0.1, turn_speed)
+                line below with: self.arcadeDrive(0.1, turn_speed)
 
                 """
                 x = self.front_camera.getX()
@@ -501,7 +525,6 @@ class DriveSubsystem(Subsystem):
     def periodic(self) -> None:
         enabled = self._robot.isEnabled()
         log_it = self._robot.counter % 20 == 0 and enabled
-        update_dash = self._robot.counter % 20 == 0 or (enabled and self._robot.counter % 10 == 0)
 
         if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
             if not self.gyro_calibrated and not self._gyro.isCalibrating():
@@ -510,30 +533,6 @@ class DriveSubsystem(Subsystem):
                 self.zero_yaw()  # we boot up at zero degrees  - note - you can't reset this while calibrating
                 self.gyro_calibrated = True
 
-        pose = self.get_pose()  # self.odometry.getPose()
-        if update_dash:
-            SmartDashboard.putNumberArray('drive_pose', [pose.X(), pose.Y(), pose.rotation().degrees()])
-            SmartDashboard.putNumber('drive_x', pose.X())
-            SmartDashboard.putNumber('drive_y', pose.Y())
-            SmartDashboard.putNumber('drive_theta', pose.rotation().degrees())
-
-            SmartDashboard.putString('_gyro_type', DriveConstants.GYRO_TYPE)
-
-            if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
-                SmartDashboard.putNumber('_gyro', self.get_angle())
-                SmartDashboard.putNumber('_gyro_yaw', self.get_yaw())
-                SmartDashboard.putNumber('_gyro_angle', self.get_gyro_angle())
-
-            elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
-                SmartDashboard.putNumber('_gyro_yaw', self.get_yaw())
-                SmartDashboard.putNumber('_gyro_pitch', self.get_pitch())
-                SmartDashboard.putNumber('_gyro_roll', self.get_roll())
-
-            SmartDashboard.putNumber('keep_angle', self.keep_angle)
-
-            # post yaw, pitch, roll so we can see what is going on with the climb  TODO: Support this someday
-            # ypr = [self._gyro.getYaw(), self.get_pitch(), self._gyro.getRoll(), self._gyro.getRotation2d().degrees()]
-            # SmartDashboard.putNumberArray('_gyro_YPR', ypr)
 
         fl_pos = self.frontLeft.getPosition()
         fr_pos = self.frontRight.getPosition()
@@ -549,16 +548,15 @@ class DriveSubsystem(Subsystem):
         # Update the odometry in the periodic block
         pose = self.odometry.update(heading, (fl_pos, fr_pos, rl_pos, rr_pos,))
 
-        if update_dash:
-            SmartDashboard.putNumber("x", pose.x)
-            SmartDashboard.putNumber("y", pose.y)
-            SmartDashboard.putNumber("heading", pose.rotation().degrees())
-
         if log_it:
             logger.debug(
                 f"Drive periodic: gyro Heading: {self.getGyroHeading()}, x: {pose.x}, y: {pose.y}, rot: {pose.rotation().degrees()}")
 
         self.field.setRobotPose(pose)
+
+        # Update SmartDashboard for this subsystem
+        self.dashboard_periodic()
+
 
     def periodic_other(self) -> None:
         # TODO: Has team 2429 vision support. Keep until we can use it

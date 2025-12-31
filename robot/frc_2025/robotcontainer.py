@@ -148,9 +148,9 @@ class RobotContainer:
         self.initialize_dashboard()  # TODO: Deprecate this
 
         for subsystem in self.subsystems:
-            if hasattr(subsystem, "initialize_dashboard") and callable(getattr(subsystem,
-                                                                               "initialize_dashboard")):
-                subsystem.initialize_dashboard()
+            if hasattr(subsystem, "dashboard_initialize") and callable(getattr(subsystem,
+                                                                               "dashboard_initialize")):
+                subsystem.dashboard_initialize()
 
         # Configure default command for driving using joystick sticks
         field_relative = self.robot_drive.field_relative
@@ -437,51 +437,13 @@ class RobotContainer:
         #
         #  Taken from the FRC2429_2025 project   TODO: what do we need here
         #
-        #
-        # SmartDashboard.putData(MoveLowerArmByNetworkTables(container=self, crank=self.lower_crank))
-        # lots of putdatas for testing on the dash
-        # COMMANDS FOR GUI (ROBOT DEBUGGING) - 20250224 CJH
-        # self.led_mode_chooser = SendableChooser()
-        # [self.led_mode_chooser.addOption(key, value) for key, value in self.led.modes_dict.items()]  # add all the indicators
-        # self.led_mode_chooser.onChange(listener=lambda selected_value: commands2.CommandScheduler.getInstance().schedule(
-        #     SetLEDs(container=self, led=self.led, mode=selected_value)))
-        #
-        # SmartDashboard.putData('LED Mode', self.led_mode_chooser)
-        #
-        # self.led_indicator_chooser = SendableChooser()
+
         #
         # [self.led_indicator_chooser.addOption(key, value) for key, value in self.led.indicators_dict.items()]  # add all the indicators
         # self.led_indicator_chooser.onChange(listener=lambda selected_value: commands2.CommandScheduler.getInstance().schedule(
         #     SetLEDs(container=self, led=self.led, indicator=selected_value)))
         # SmartDashboard.putData('LED Indicator', self.led_indicator_chooser)
 
-        # # Arshan's 67 scoring trajectory tests
-        # SmartDashboard.putData('67 score trajectory L2', FollowTrajectory(container=self, current_trajectory=CustomTrajectory(trajectory.score_waypoint_dict['l2'], list(trajectory.score_waypoint_dict['l2'].keys())[-1]), wait_to_finish=True, ignore_wrist=True))
-        # SmartDashboard.putData('67 score trajectory L3', FollowTrajectory(container=self, current_trajectory=CustomTrajectory(trajectory.score_waypoint_dict['l3'], list(trajectory.score_waypoint_dict['l3'].keys())[-1]), wait_to_finish=True, ignore_wrist=True))
-        # SmartDashboard.putData('67 score trajectory L4', FollowTrajectory(container=self, current_trajectory=CustomTrajectory(trajectory.score_waypoint_dict['l4'], list(trajectory.score_waypoint_dict['l4'].keys())[-1]), wait_to_finish=True, ignore_wrist=True))
-        #
-        # #SmartDashboard.putData('67 score trajectory', FollowTrajectory(container=self, current_trajectory=CustomTrajectory(trajectory.score_waypoint_dict[self.robot_state.get_target().value['name']], list(trajectory.score_waypoint_dict[self.robot_state.get_target().value['name']].keys())[-1]), wait_to_finish=True))
-        #
-        # #.keys()[-1]
-        #
-        # '''
-        # SmartDashboard.putData('l3 trajectory', FollowTrajectorya(container=self, current_trajectory=trajectory.trajectory_L3, wait_to_finish=True))
-        # SmartDashboard.putData('l2 67 score trajectory', FollowTrajectory(container=self, current_trajectory=trajectory.l2_score_67, wait_to_finish=True))
-        # SmartDashboard.putData('l3 67 score trajectory', FollowTrajectory(container=self, current_trajectory=trajectory.l3_score_67, wait_to_finish=True))
-        # SmartDashboard.putData('l4 67 score trajectory', FollowTrajectory(container=self, current_trajectory=trajectory.l4_score_67, wait_to_finish=True))'
-        # '''
-        #
-        # # experimental, not used on dash
-        # SmartDashboard.putData("Go to 60 deg pid", cmd.runOnce(lambda: self.pivot.set_goal(math.radians(60), False), self.pivot))
-        # SmartDashboard.putData("Go to 90 deg pid", cmd.runOnce(lambda: self.pivot.set_goal(math.radians(90), False), self.pivot))
-        # SmartDashboard.putData('SetSuccess', SetLEDs(container=self, led=self.led, indicator=Led.Indicator.kSUCCESS))
-        # SmartDashboard.putData('MoveElevator', MoveElevator(container=self, elevator=self.elevator, mode='absolute'))
-        # SmartDashboard.putData('MovePivot', MovePivot(container=self, pivot=self.pivot, mode='absolute'))
-        # SmartDashboard.putData('SequentialScore', SequentialScoring(container=self))
-        # SmartDashboard.putData('Move wrist to -90 deg', MoveWrist(container=self, radians=math.radians(-90), timeout=4))
-        # SmartDashboard.putData('Move wrist to 0 deg', MoveWrist(container=self, radians=math.radians(0), timeout=4))
-        # SmartDashboard.putData('Move wrist to 90 deg', MoveWrist(container=self, radians=math.radians(90), timeout=4))
-        #
         # # commands for pyqt dashboard - please do not remove
         # SmartDashboard.putData('MoveElevatorTop', MoveElevator(container=self, elevator=self.elevator, mode='specified', height=constants.ElevatorConstants.k_max_height-0.005 ))
         # SmartDashboard.putData('MoveElevatorUp', MoveElevator(container=self, elevator=self.elevator, mode='incremental', height=0.1 ))

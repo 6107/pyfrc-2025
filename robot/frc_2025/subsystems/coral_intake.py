@@ -30,6 +30,7 @@ class CoralIntake(Subsystem):
         super().__init__()
 
         self._container = container
+        self._robot = container.robot
         self._name = name
         self._motor = SparkMax(can_bus_device_id, SparkLowLevel.MotorType.kBrushless)
         self._alge_subsystem = container.alge_subsystem
@@ -62,17 +63,25 @@ class CoralIntake(Subsystem):
 
         self._motor.set(value)
         self._speed = value
-        SmartDashboard.putNumber(f"{self._name} Speed", value)
 
     def stop(self) -> None:
         self.speed = 0.0
         logger.info("CoralIntake: stopped")
 
-    def initialize_dashboard(self) -> None:
+    def dashboard_initialize(self) -> None:
         """
         Configure the SmartDashboard for this subsystem
+        """  # TODO: Add me
+
+    def dashboard_periodic(self) -> None:
         """
-        pass  # TODO: Add me
+        Called from periodic function to update dashboard elements for this subsystem
+        """
+        divisor = 10 if self._robot.isEnabled() else 20
+        update_dash = self._robot.counter % divisor == 0
+
+        if update_dash:
+            SmartDashboard.putNumber(f"Coral/Speed", self._speed)
 
     def configure_button_bindings(self, driver, shooter) -> None:
         """

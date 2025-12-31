@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 class AlgeRoller:
     def __init__(self, device_id: int, container: 'RobotContainer') -> None:
-        self._rcontainer = container
+        self._robot = container.robot
 
         self._motor = SparkFlex(device_id, SparkLowLevel.MotorType.kBrushless)
 
@@ -58,7 +58,6 @@ class AlgeRoller:
 
         self._motor.set(value)
         self._speed = value
-        SmartDashboard.putNumber("Alge Roller Speed", value)
 
     def stop(self) -> None:
         logger.info("AlgeRoller: stopped")
@@ -66,6 +65,22 @@ class AlgeRoller:
 
     def periodic(self) -> None:
         pass  # TODO: Anything here ?
+
+    def dashboard_initialize(self) -> None:
+        """
+        Configure the SmartDashboard for this subsystem
+        """
+        pass
+
+    def dashboard_periodic(self) -> None:
+        """
+        Called from periodic function to update dashboard elements for this subsystem
+        """
+        divisor = 10 if self._robot.isEnabled() else 20
+        update_dash = self._robot.counter % divisor == 0
+
+        if update_dash:
+            SmartDashboard.putNumber("Alge/Roller Speed", self._speed)
 
     def sim_init(self, physics_controller: 'PhysicsInterface') -> None:
         """
@@ -101,7 +116,7 @@ class AlgeRoller:
 
 class AlgeRotation:
     def __init__(self, device_id: int, container: 'RobotContainer') -> None:
-        self._rcontainer = container
+        self._robot = container.robot
 
         self._motor = SparkMax(device_id, SparkLowLevel.MotorType.kBrushless)
 
@@ -132,7 +147,6 @@ class AlgeRotation:
 
         self._motor.set(value)
         self._speed = value
-        SmartDashboard.putNumber("Alge Rotation Speed", value)
 
     def stop(self) -> None:
         logger.info("AlgeRotation: stopped")
@@ -140,6 +154,22 @@ class AlgeRotation:
 
     def periodic(self) -> None:
         pass  # TODO: Anything here ?
+
+    def dashboard_initialize(self) -> None:
+        """
+        Configure the SmartDashboard for this subsystem
+        """
+        pass
+
+    def dashboard_periodic(self) -> None:
+        """
+        Called from periodic function to update dashboard elements for this subsystem
+        """
+        divisor = 10 if self._robot.isEnabled() else 20
+        update_dash = self._robot.counter % divisor == 0
+
+        if update_dash:
+            SmartDashboard.putNumber("Alge/Rotation Speed", self._speed)
 
     def sim_init(self, physics_controller: 'PhysicsInterface') -> None:
         """
@@ -207,14 +237,21 @@ class AlgeSubsystem(Subsystem):
         """
         pass  # TODO: Add me
 
-    def initialize_dashboard(self) -> None:
+    def dashboard_initialize(self) -> None:
         """
         Configure the SmartDashboard for this subsystem
         """
-        pass  # TODO: Add me
+        self._roller.dashboard_initialize()
+        self._rotation.dashboard_initialize()
+
+    def dashboard_periodic(self) -> None:
+        """
+        Called from periodic function to update dashboard elements for this subsystem
+        """
+        self._roller.dashboard_periodic()
+        self._rotation.dashboard_periodic()
 
     def periodic(self) -> None:
-        pass
         # TODO: Can following be done with commands
         shooter = self._container.controller_shooter
 
@@ -245,6 +282,7 @@ class AlgeSubsystem(Subsystem):
         #     self.alge_roller.speed = D_ALGE_GRABBER_HOLD
         #     self.alge_rotation.closed_loop_controller.setReference(I_ALGE_ROTATION_IN,
         #                                                            SparkBase.ControlType.kPosition)
+        self.dashboard_periodic()
 
     def sim_init(self, physics_controller: 'PhysicsInterface') -> None:
         """

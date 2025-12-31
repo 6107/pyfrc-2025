@@ -38,6 +38,7 @@ class Elevator(Subsystem):
         super().__init__()
 
         self._container = container
+        self._robot = container.robot
 
         self._motor: TalonFX = TalonFX(can_bus_device_id)
         self._position: PositionVoltage = EL_POS_L0
@@ -60,14 +61,22 @@ class Elevator(Subsystem):
         self._motor.set_control(value)
         self._position = value
 
-        SmartDashboard.putNumber("Elevator Position", value.position)
-        SmartDashboard.putNumber("Elevator Velocity", value.velocity)
-
-    def initialize_dashboard(self) -> None:
+    def dashboard_initialize(self) -> None:
         """
         Configure the SmartDashboard for this subsystem
         """
-        pass  # TODO: Add me
+        pass
+
+    def dashboard_periodic(self) -> None:
+        """
+        Called from periodic function to update dashboard elements for this subsystem
+        """
+        divisor = 10 if self._robot.isEnabled() else 20
+        update_dash = self._robot.counter % divisor == 0
+
+        if update_dash:
+            SmartDashboard.putNumber("Elevator/Position", self._position.position)
+            SmartDashboard.putNumber("Elevator/Velocity", self._position.velocity)
 
     def configure_button_bindings(self, driver, shooter) -> None:
         """
