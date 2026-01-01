@@ -33,8 +33,8 @@ from lib_6107.commands.drivetrain.aimtodirection import AimToDirectionConstants
 
 
 class GoToPointConstants:
-    kPTranslate = 0.25 / (DriveConstants.kMaxSpeedMetersPerSecond / 4.7)
-    kUseSqrtControl = AutoConstants.kUseSqrtControl
+    kPTranslate = 0.25 / (DriveConstants.MAX_SPEED_METERS_PER_SECOND / 4.7)
+    kUseSqrtControl = AutoConstants.USE_SQRT_CONTROL
 
     kMinTranslateSpeed = 0.035  # moving forward slower than this is unproductive
     kApproachRadius = 0.2  # within this radius from target location, try to point in desired direction

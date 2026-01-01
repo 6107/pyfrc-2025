@@ -123,7 +123,7 @@ class MAXSwerveModule:
         :param desiredState: Desired state with speed and angle.
 
         """
-        if abs(desiredState.speed) < ModuleConstants.kDrivingMinSpeedMetersPerSecond:
+        if abs(desiredState.speed) < ModuleConstants.MIN_DRIVING_SPEED:
             # if WPILib doesn't want us to move at all, don't bother to bring the wheels back to zero angle yet
             # (causes brownout protection when battery is lower: https://youtu.be/0Xi9yb1IMyA)
             inXBrake = abs(abs(desiredState.angle.degrees()) - 45) < 0.01

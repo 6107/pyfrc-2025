@@ -27,7 +27,7 @@ from wpimath.geometry import Translation3d, Rotation2d
 from frc_2025 import constants
 from frc_2025.commands.holonomicdrive import HolonomicDrive
 from frc_2025.subsystems.alge_subsystem import AlgeSubsystem, AlgeRoller, AlgeRotation
-from frc_2025.subsystems.constants import DeviceID, k_has_front_camera, k_use_vision_odometry
+from frc_2025.subsystems.constants import DeviceID, HAS_FRONT_CAMERA, USE_VISION_ODOMETRY
 from frc_2025.subsystems.coral_intake import LeftCoralIntake, RightCoralIntake, ExtendCoralIntake
 from frc_2025.subsystems.elevator_subsystem import Elevator
 from frc_2025.subsystems.swervedrive.constants import OIConstants
@@ -66,10 +66,10 @@ class RobotContainer:
         self._alliance_change_callbacks: List[Callable[[bool, int], None]] = []
 
         # The driver's controller
-        self.driver_controller = button.CommandXboxController(constants.kDriverControllerPort)
+        self.driver_controller = button.CommandXboxController(constants.DRIVER_CONTROLLER_PORT)
 
         # Shooter's controller
-        self.controller_shooter: XboxController = XboxController(constants.kShooterControllerPort)  # On USB-port
+        self.controller_shooter: XboxController = XboxController(constants.SHOOTER_CONTROLLER_PORT)  # On USB-port
 
         ########################################################
         # Subsystem initialization
@@ -81,7 +81,7 @@ class RobotContainer:
         self.vision_odometry = False
         drive_kwargs: Dict[str, Any] = {}
 
-        if k_has_front_camera:
+        if HAS_FRONT_CAMERA:
             # Primary camera
             drive_kwargs["Cameras"] = {}
 
@@ -92,7 +92,7 @@ class RobotContainer:
             front["Camera"] = self.front_camera
             camera_subsystems.append(self.front_camera)
 
-            if k_use_vision_odometry:
+            if USE_VISION_ODOMETRY:
                 # TODO: Make pose and heading below as constants
                 self.localizer = LimelightLocalizer(self)
                 self.localizer.addCamera(self.front_camera,
@@ -108,7 +108,7 @@ class RobotContainer:
 
         # TODO: Create subsystems for the following and then commands instead of the periodic check
         self._elevator: Subsystem = Elevator(DeviceID.ELEVATOR_DEVICE_ID,
-                                             robot)  # Device ID is 10 (as configured in the Phoenix Tuner)
+                                             self)  # Device ID is 10 (as configured in the Phoenix Tuner)
 
         self._alge_subsystem: AlgeSubsystem = AlgeSubsystem(DeviceID.ALGE_ROLLER_DEVICE_ID,
                                                             DeviceID.ALGE_ROTATION_DEVICE_ID,
@@ -168,7 +168,7 @@ class RobotContainer:
                                    forwardSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftY),
                                    leftSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftX),
                                    rotationSpeed=lambda: -self.driver_controller.getRawAxis(rightAxisX),
-                                   deadband=OIConstants.kDriveDeadband,
+                                   deadband=OIConstants.DRIVE_DEADBAND,
                                    field_relative=field_relative,
                                    rateLimit=True,
                                    square=True)

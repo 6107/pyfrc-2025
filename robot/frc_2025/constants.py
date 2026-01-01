@@ -35,7 +35,7 @@ OTEL_OLTP_ENDPOINT = os.getenv("OTEL_OLTP_ENDPOINT", default="supermicro:4317")
 
 ROBOT_MASS = units.lbsToKilograms(148 - 20.3)  # 32lbs * kg per pound
 # CHASSIS    = Matter(geometry.Translation3d(0, 0, units.inchesToMeters(8)), ROBOT_MASS)        TODO: Figure this out
-LOOP_TIME  = 0.13                       #  seconds, 20ms + 110ms sprk max velocity lag
+LOOP_TIME = 0.13  # seconds, 20ms + 110ms sprk max velocity lag
 
 # Maximum speed of the robot in meters per second, used to limit acceleration.
 #    1.45 feet is 4.4196 meters
@@ -43,46 +43,14 @@ MAX_SPEED = units.feetToMeters(14.5)
 
 I_INTAKE_EXTEND_MAX = 100
 
-# class DrivebaseConstants:
-    # Hold time on motor brakes when disabled
+# Hold time on motor brakes when disabled
 WHEEL_LOCK_TIME = 10  # seconds
 
-
-# class OperatorConstants:
-    # Joystick Deadband
-DEADBAND        = 0.1
+# Joystick Deadband
+JOYSTICK_DEADBAND = 0.1
 LEFT_Y_DEADBAND = 0.1
 RIGHT_X_DEADBAND = 0.1
-TURN_CONSTANT    = 6
+TURN_CONSTANT = 6
 
-#  TODO: Following were created by the 'robotpy' init command.  Not sure if we need them
-#
-# class DriveConstants:
-#     # The PWM IDs for the drivetrain motor controllers.
-#     kLeftMotor1Port = 0
-#     kLeftMotor2Port = 1
-#     kRightMotor1Port = 2
-#     kRightMotor2Port = 3
-#
-#     # Encoders and their respective motor controllers.
-#     kLeftEncoderPorts = (0, 1)
-#     kRightEncoderPorts = (2, 3)
-#     kLeftEncoderReversed = False
-#     kRightEncoderReversed = True
-#
-#     # Encoder counts per revolution/rotation.
-#     kEncoderCPR = 1024
-#     kWheelDiameterInches = 6
-#
-#     # Assumes the encoders are directly mounted on the wheel shafts
-#     kEncoderDistancePerPulse = (kWheelDiameterInches * math.pi) / kEncoderCPR
-#
-#
-# class AutoConstants:
-#     kAutoTimeoutSeconds = 12
-#     kAutoShootTimeSeconds = 7
-#
-#
-# class OIConstants:
-kDriverControllerPort = 0
-kShooterControllerPort = 1
+DRIVER_CONTROLLER_PORT = 0
+SHOOTER_CONTROLLER_PORT = 1

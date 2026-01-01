@@ -44,6 +44,7 @@ class DeviceID(IntEnum):
     DRIVETRAIN_RIGHT_REAR_DRIVING_ID = 28
     DRIVETRAIN_RIGHT_REAR_ENCODER_ID = 34
 
+    GYRO_DEVICE_ID = 35
     # Elevator
     ELEVATOR_DEVICE_ID = 10
 
@@ -81,18 +82,15 @@ EL_POS_L3 = PositionVoltage(0.0, slot=0)
 EL_POS_IN = PositionVoltage(0.0, slot=0)
 
 # starting position for odometry
-k_start_x = 0
-k_start_y = 0
+START_X = 0
+START_Y = 0
 
-k_has_front_camera = False
-k_use_vision_odometry = False
+HAS_FRONT_CAMERA = False
+USE_VISION_ODOMETRY = False
 
-k_swerve_debugging_messages = True
+SWERVE_DEBUG_MESSAGES = True
 # multiple attempts at tags this year - TODO - use l/r/ or up/down tilted cameras again, gives better data
-k_use_apriltag_odometry = True
-k_use_quest_odometry = False
-k_use_photontags = False  # take tags from photonvision camera
-k_use_CJH_tags = True  # take tags from the pis
-k_swerve_only = False
-k_swerve_rate_limited = True
-k_field_oriented = True
+USE_APRILTAG_ODOMETRY = True
+USE_QUEST_ODOMETRY = False
+USE_PHOTON_TAGS = False  # take tags from photonvision camera
+USE_CJH_TAGS = True  # take tags from the pis

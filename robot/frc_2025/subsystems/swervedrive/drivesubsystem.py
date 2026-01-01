@@ -138,15 +138,15 @@ class DriveSubsystem(Subsystem):
         if not TimedCommandRobot.isSimulation():
             self.gyroOvershootFraction = GYRO_OVERSHOOT_FRACTION
 
-        enabledChassisAngularOffset = 0 if DriveConstants.kAssumeZeroOffsets else 1
+        # enabledChassisAngularOffset = 0 if DriveConstants.ASSUME_ZERO_OFFSET else 1
 
         # Create MAXSwerveModules
         self.frontLeft = MAXSwerveModule(
             DeviceID.DRIVETRAIN_LEFT_FRONT_DRIVING_ID,
             DeviceID.DRIVETRAIN_LEFT_FRONT_TURNING_ID,
-            DriveConstants.kFrontLeftAngularOffset,
-            driveMotorInverted=DriveConstants.kFrontLeftDriveMotorInverted,
-            turnMotorInverted=DriveConstants.kFrontLeftTurningMotorInverted,
+            DriveConstants.FRONT_LEFT_ANGULAR_OFFSET,
+            driveMotorInverted=DriveConstants.FRONT_LEFT_DRIVE_MOTOR_INVERTED,
+            turnMotorInverted=DriveConstants.FRONT_LEFT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
             cancoder_device_id=DeviceID.DRIVETRAIN_LEFT_FRONT_ENCODER_ID,
             label="lf"
@@ -155,9 +155,9 @@ class DriveSubsystem(Subsystem):
         self.frontRight = MAXSwerveModule(
             DeviceID.DRIVETRAIN_RIGHT_FRONT_DRIVING_ID,
             DeviceID.DRIVETRAIN_RIGHT_FRONT_TURNING_ID,
-            DriveConstants.kFrontRightChassisAngularOffset * enabledChassisAngularOffset,
-            driveMotorInverted=DriveConstants.kFrontRightDriveMotorInverted,
-            turnMotorInverted=DriveConstants.kFrontRightTurningMotorInverted,
+            DriveConstants.FRONT_RIGHT_ANGULAR_OFFSET,
+            driveMotorInverted=DriveConstants.FRONT_RIGHT_DRIVE_MOTOR_INVERTED,
+            turnMotorInverted=DriveConstants.FRONT_RIGHT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
             cancoder_device_id=DeviceID.DRIVETRAIN_RIGHT_FRONT_ENCODER_ID,
             label="rf"
@@ -166,9 +166,9 @@ class DriveSubsystem(Subsystem):
         self.rearLeft = MAXSwerveModule(
             DeviceID.DRIVETRAIN_LEFT_REAR_DRIVING_ID,
             DeviceID.DRIVETRAIN_LEFT_REAR_TURNING_ID,
-            DriveConstants.kRearLeftAngularOffset,
-            driveMotorInverted=DriveConstants.kRearLeftDriveMotorInverted,
-            turnMotorInverted=DriveConstants.kRearLeftTurningMotorInverted,
+            DriveConstants.REAR_LEFT_ANGULAR_OFFSET,
+            driveMotorInverted=DriveConstants.REAR_LEFT_DRIVE_MOTOR_INVERTED,
+            turnMotorInverted=DriveConstants.REAR_LEFT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
             cancoder_device_id=DeviceID.DRIVETRAIN_LEFT_REAR_ENCODER_ID,
             label="lb"
@@ -177,9 +177,9 @@ class DriveSubsystem(Subsystem):
         self.rearRight = MAXSwerveModule(
             DeviceID.DRIVETRAIN_RIGHT_REAR_DRIVING_ID,
             DeviceID.DRIVETRAIN_RIGHT_REAR_TURNING_ID,
-            DriveConstants.kRearRightAngularOffset,
-            driveMotorInverted=DriveConstants.kRearRightDriveMotorInverted,
-            turnMotorInverted=DriveConstants.kRearRightTurningMotorInverted,
+            DriveConstants.REAR_RIGHT_ANGULAR_OFFSET,
+            driveMotorInverted=DriveConstants.REAR_RIGHT_DRIVE_MOTOR_INVERTED,
+            turnMotorInverted=DriveConstants.REAR_RIGHT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
             cancoder_device_id=DeviceID.DRIVETRAIN_RIGHT_REAR_ENCODER_ID,
             label="rb"
@@ -207,7 +207,7 @@ class DriveSubsystem(Subsystem):
 
         elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
             # Note: Default pigeon2 config has compass disabled. We want it that way as well.
-            self._gyro: pigeon2.Pigeon2 = pigeon2.Pigeon2(DriveConstants.kGyroDeviceId)
+            self._gyro: pigeon2.Pigeon2 = pigeon2.Pigeon2(DeviceID.GYRO_DEVICE_ID)
             self._gyro.reset()
 
         # timer and variables for checking if we should be using pid on rotation
@@ -222,9 +222,9 @@ class DriveSubsystem(Subsystem):
         self.last_drive_time = 0
         self.time_since_drive = 0
 
-        self.fwd_magLimiter = SlewRateLimiter(0.9 * DriveConstants.kMagnitudeSlewRate)
-        self.strafe_magLimiter = SlewRateLimiter(DriveConstants.kMagnitudeSlewRate)
-        self.rotLimiter = SlewRateLimiter(DriveConstants.kRotationalSlewRate)
+        self.fwd_magLimiter = SlewRateLimiter(0.9 * DriveConstants.MAGNITUDE_SLEW_RATE)
+        self.strafe_magLimiter = SlewRateLimiter(DriveConstants.MAGNITUDE_SLEW_RATE)
+        self.rotLimiter = SlewRateLimiter(DriveConstants.ROTATIONAL_SLEW_RATE)
 
         # TODO: original gyro attributes below from the Java 2025 code.
         self._lastGyroAngleTime = 0
@@ -239,8 +239,8 @@ class DriveSubsystem(Subsystem):
         self.ySpeedDelivered = 0.0
         self.rotDelivered = 0.0
 
-        self.magLimiter = SlewRateLimiter(DriveConstants.kMagnitudeSlewRate)
-        self.rotLimiter = SlewRateLimiter(DriveConstants.kRotationalSlewRate)
+        self.magLimiter = SlewRateLimiter(DriveConstants.MAGNITUDE_SLEW_RATE)
+        self.rotLimiter = SlewRateLimiter(DriveConstants.ROTATIONAL_SLEW_RATE)
         self.prevTime = Timer.getFPGATimestamp()
 
         # The next attributes are set depending on if vision is upported for tracking the robot pose
@@ -253,7 +253,7 @@ class DriveSubsystem(Subsystem):
             self.field_relative = True
 
             # Odometry class for tracking robot pose
-            self.odometry = SwerveDrive4Odometry(DriveConstants.kDriveKinematics,
+            self.odometry = SwerveDrive4Odometry(DriveConstants.DRIVE_KINEMATICS,
                                                  Rotation2d(),
                                                  (self.frontLeft.getPosition(),
                                                   self.frontRight.getPosition(),
@@ -312,11 +312,11 @@ class DriveSubsystem(Subsystem):
         # TODO: Below is code from team 2429 where they use vision to estimate position.
         # TODO: May be better derive a new class for this
         # 2024 - orphan the old odometry, now use the vision enabled version of odometry instead
-        initialPose = Pose2d(constants.k_start_x,
-                             constants.k_start_y,
+        initialPose = Pose2d(constants.START_X,
+                             constants.START_Y,
                              Rotation2d.fromDegrees(self.get_gyro_angle()))
 
-        self.pose_estimator = SwerveDrive4PoseEstimator(DriveConstants.kDriveKinematics,
+        self.pose_estimator = SwerveDrive4PoseEstimator(DriveConstants.DRIVE_KINEMATICS,
                                                         Rotation2d.fromDegrees(self.get_gyro_angle()),
                                                         self.get_module_positions(),
                                                         initialPose=initialPose)
@@ -333,7 +333,7 @@ class DriveSubsystem(Subsystem):
             self.pi_subscriber_dicts.append(this_pi_subscriber_dict)
 
         # photonvision camera setup
-        self.use_photoncam = constants.k_use_photontags  # decide down below in periodic
+        self.use_photoncam = constants.USE_PHOTON_TAGS  # decide down below in periodic
         if self.use_photoncam:
             # TODO: Code still from team 2429 below
             from photonlibpy import PhotonCamera, PhotonPoseEstimator, PoseStrategy  # 2025 is first time for us
@@ -377,7 +377,7 @@ class DriveSubsystem(Subsystem):
 
             # -----------   CJH simple apriltags  ------------
             # get poses from NT
-            self.use_CJH_apriltags = constants.k_use_CJH_tags  # down below we decide which one to use in the periodic method
+            self.use_CJH_apriltags = constants.USE_CJH_TAGS  # down below we decide which one to use in the periodic method
             # lhack turned off 15:48 2/28/25 to test pathplanner wo tags first
             self.inst = ntcore.NetworkTableInstance.getDefault()
             # TODO - make this a loop with just the names
@@ -440,7 +440,7 @@ class DriveSubsystem(Subsystem):
             self.quest_field = Field2d()
             self.quest_has_synched = False  # use this to check in disabled whether to update the quest with the robot odometry
             SmartDashboard.putBoolean('questnav_synched', self.quest_has_synched)
-            self.use_quest = constants.k_use_quest_odometry
+            self.use_quest = constants.USE_QUEST_ODOMETRY
             SmartDashboard.putBoolean('questnav_in_use', self.use_quest)
 
             # note - have Risaku standardize these with the rest of the putDatas
@@ -586,7 +586,7 @@ class DriveSubsystem(Subsystem):
 
                     latency = self.photoncam_latency_subscriber.get()
                     # if statements to test if we want to update using a tag
-                    use_tag = constants.k_use_photontags  # can disable this in constants
+                    use_tag = constants.USE_PHOTON_TAGS  # can disable this in constants
                     # do not allow large jumps when enabled
                     delta_pos = Translation2d.distance(self.get_pose().translation(),
                                                        cam_est_pose.estimatedPose.translation().toTranslation2d())
@@ -642,7 +642,7 @@ class DriveSubsystem(Subsystem):
                     rx, ry, rz = tag_data[5], tag_data[6], tag_data[7]
                     tag_pose = Pose3d(Translation3d(tx, ty, tz), Rotation3d(rx, ry, rz)).toPose2d()
 
-                    use_tag = constants.k_use_CJH_tags  # can disable this in constants
+                    use_tag = constants.USE_CJH_TAGS  # can disable this in constants
                     # do not allow large jumps when enabled
                     delta_pos = Translation2d.distance(self.get_pose().translation(), tag_pose.translation())
                     # 20251018 commented out the 1m sanity check in case the questnav dies - this way we can get back
@@ -703,7 +703,7 @@ class DriveSubsystem(Subsystem):
             SmartDashboard.putNumber('_pdh_voltage', voltage)
             SmartDashboard.putNumber('_pdh_current', total_current)
 
-            if constants.k_swerve_debugging_messages:  # this is just a bit much unless debugging the swerve
+            if constants.SWERVE_DEBUG_MESSAGES:  # this is just a bit much unless debugging the swerve
                 angles = [m.turningEncoder.getPosition() for m in self.swerve_modules]
                 absolutes = [m.get_turn_encoder() for m in self.swerve_modules]
                 for idx, absolute in enumerate(absolutes):
@@ -721,7 +721,7 @@ class DriveSubsystem(Subsystem):
         Initialize any simulation only needed parameters
         """
         self._physics_controller = physics_controller
-        self.kinematics: SwerveDrive4Kinematics = DriveConstants.kDriveKinematics  # our swerve drive kinematics
+        self.kinematics: SwerveDrive4Kinematics = DriveConstants.DRIVE_KINEMATICS  # our swerve drive kinematics
 
         if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
             # NavX (SPI interface)
@@ -827,7 +827,7 @@ class DriveSubsystem(Subsystem):
             logger.debug(f"Update swerve: previous: {previous}, new: {new}, omega: {omega}, degrees: {gyro_degrees}")
 
         gyro_degrees = pose.rotation().degrees()
-        self.sim_yaw = -gyro_degrees if DriveConstants.kGyroReversed else gyro_degrees
+        self.sim_yaw = -gyro_degrees if DriveConstants.GYRO_REVERSED else gyro_degrees
 
         return amperes_used
 
@@ -948,7 +948,7 @@ class DriveSubsystem(Subsystem):
 
             # Calculate the direction slew rate based on an estimate of the lateral acceleration
             if self.currentTranslationMag != 0.0:
-                directionSlewRate = abs(DriveConstants.kDirectionSlewRate / self.currentTranslationMag)
+                directionSlewRate = abs(DriveConstants.DIRECTION_SLEW_RATE / self.currentTranslationMag)
             else:
                 directionSlewRate = 500.0
                 # some high number that means the slew rate is effectively instantaneous
@@ -992,9 +992,9 @@ class DriveSubsystem(Subsystem):
             self.currentRotation = rot
 
         # Convert the commanded speeds into the correct units for the drivetrain
-        self.xSpeedDelivered = xSpeedCommanded * DriveConstants.kMaxSpeedMetersPerSecond
-        self.ySpeedDelivered = ySpeedCommanded * DriveConstants.kMaxSpeedMetersPerSecond
-        self.rotDelivered = self.currentRotation * DriveConstants.kMaxAngularSpeed
+        self.xSpeedDelivered = xSpeedCommanded * DriveConstants.MAX_SPEED_METERS_PER_SECOND
+        self.ySpeedDelivered = ySpeedCommanded * DriveConstants.MAX_SPEED_METERS_PER_SECOND
+        self.rotDelivered = self.currentRotation * DriveConstants.MAX_ANGULAR_SPEED
 
         if fieldRelative:
             speeds = ChassisSpeeds.fromFieldRelativeSpeeds(self.xSpeedDelivered, self.ySpeedDelivered,
@@ -1002,9 +1002,9 @@ class DriveSubsystem(Subsystem):
         else:
             speeds = ChassisSpeeds(self.xSpeedDelivered, self.ySpeedDelivered, self.rotDelivered)
 
-        swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(speeds)
+        swerveModuleStates = DriveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(speeds)
 
-        maxSpeed = DriveConstants.kMaxSpeedMetersPerSecond
+        maxSpeed = DriveConstants.MAX_SPEED_METERS_PER_SECOND
         if self.maxSpeedScaleFactor is not None:
             maxSpeed = maxSpeed * self.maxSpeedScaleFactor()
 
@@ -1026,7 +1026,7 @@ class DriveSubsystem(Subsystem):
 
         :param desiredStates: The desired SwerveModule states.
         """
-        maxSpeed = DriveConstants.kMaxSpeedMetersPerSecond
+        maxSpeed = DriveConstants.MAX_SPEED_METERS_PER_SECOND
         if self.maxSpeedScaleFactor is not None:
             maxSpeed = maxSpeed * self.maxSpeedScaleFactor()
         fl, fr, rl, rr = SwerveDrive4Kinematics.desaturateWheelSpeeds(desiredStates, maxSpeed)
@@ -1060,7 +1060,7 @@ class DriveSubsystem(Subsystem):
                     state = "calibrating"
 
                 raw_angle = self.get_raw_angle()
-                gyroAngle = -raw_angle if DriveConstants.kGyroReversed else raw_angle
+                gyroAngle = -raw_angle if DriveConstants.GYRO_REVERSED else raw_angle
 
                 # correct for gyro drift
                 if self.gyroOvershootFraction != 0.0 and self._lastGyroAngle != 0 and notCalibrating:
@@ -1106,7 +1106,7 @@ class DriveSubsystem(Subsystem):
         else:
             raise NotImplementedError(f"IMU/Gyro type of {DriveConstants.GYRO_TYPE} not implemented")
 
-        return -rate if DriveConstants.kGyroReversed else rate
+        return -rate if DriveConstants.GYRO_REVERSED else rate
 
     ##########################################################
     # TODO: All the following are related to team 2429 and pathplanner. These have not been tested and
@@ -1115,7 +1115,7 @@ class DriveSubsystem(Subsystem):
     #  -------------  THINGS PATHPLANNER NEEDS  - added for pathplanner 20230218 CJH
     def get_relative_speeds(self) -> ChassisSpeeds:
         # added for pathplanner 20230218 CJH
-        return DriveConstants.kDriveKinematics.toChassisSpeeds(self.get_module_states())
+        return DriveConstants.DRIVE_KINEMATICS.toChassisSpeeds(self.get_module_states())
 
     def drive_robot_relative(self, chassis_speeds: ChassisSpeeds, feedforwards):
         """c
@@ -1123,9 +1123,9 @@ class DriveSubsystem(Subsystem):
         """
         # required for the pathplanner lib's path following based on chassis speeds
         # idk if we need the feedforwards
-        swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(chassis_speeds)
+        swerveModuleStates = DriveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(chassis_speeds)
         swerveModuleStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(swerveModuleStates,
-                                                                          DriveConstants.kMaxTotalSpeed)
+                                                                          DriveConstants.MAX_TOTAL_SPEED)
         for state, module in zip(swerveModuleStates, self.swerve_modules):
             module.setDesiredState(state)
 
@@ -1210,7 +1210,7 @@ class DriveSubsystem(Subsystem):
         """Sets the swerve ModuleStates.
         :param desiredStates: The desired SwerveModule states.
         """
-        desiredStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(desiredStates, DriveConstants.kMaxTotalSpeed)
+        desiredStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(desiredStates, DriveConstants.MAX_TOTAL_SPEED)
         for idx, m in enumerate(self.swerve_modules):
             m.setDesiredState(desiredStates[idx])
 
@@ -1269,7 +1269,7 @@ class DriveSubsystem(Subsystem):
         # note this does add in the current offset
         if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
             angle = self._gyro.getAngle()
-            return -angle if DriveConstants.kGyroReversed else angle
+            return -angle if DriveConstants.GYRO_REVERSED else angle
 
         if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
             return self.get_yaw()
@@ -1292,7 +1292,7 @@ class DriveSubsystem(Subsystem):
         else:
             raise NotImplementedError(f"IMU/Gyro type of {DriveConstants.GYRO_TYPE} not implemented")
 
-        return -yaw if DriveConstants.kGyroReversed else yaw
+        return -yaw if DriveConstants.GYRO_REVERSED else yaw
 
     def get_pitch(self) -> degrees:  # need to calibrate the gyro?
         pitch_offset = 0  # TODO: Always zero?

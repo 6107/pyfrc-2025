@@ -37,7 +37,6 @@ class Elevator(Subsystem):
     def __init__(self, can_bus_device_id: int, container: 'RobotContainer') -> None:
         super().__init__()
 
-        self._container = container
         self._robot = container.robot
 
         self._motor: TalonFX = TalonFX(can_bus_device_id)

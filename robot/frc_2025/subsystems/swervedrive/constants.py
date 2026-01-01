@@ -22,7 +22,7 @@
 
 import math
 
-from rev import SparkBase, SparkBaseConfig, ClosedLoopConfig
+from rev import SparkBaseConfig, ClosedLoopConfig
 from wpimath import units
 from wpimath.geometry import Translation2d
 from wpimath.kinematics import SwerveDrive4Kinematics
@@ -30,61 +30,61 @@ from wpimath.trajectory import TrapezoidProfileRadians
 
 
 class NeoMotorConstants:
-    kFreeSpeedRpm = 5676
+    FREE_SPEED_RPM = 5676
 
 class DriveConstants:
     # Driving Parameters - Note that these are not the maximum capable speeds of
     # the robot, rather the allowed maximum speeds
-    kMaxSpeedMetersPerSecond = 4.8
-    kMaxAngularSpeed = 2 * math.tau  # radians per second
-    kMaxTotalSpeed = 1.1 * math.sqrt(2) * kMaxSpeedMetersPerSecond
+    MAX_SPEED_METERS_PER_SECOND = 4.8
+    MAX_ANGULAR_SPEED = 2 * math.tau  # radians per second
+    MAX_TOTAL_SPEED = 1.1 * math.sqrt(2) * MAX_SPEED_METERS_PER_SECOND
 
-    kDirectionSlewRate = 1.2  # radians per second
-    kMagnitudeSlewRate = 1.8  # percent per second (1 = 100%)
-    kRotationalSlewRate = 2.0  # percent per second (1 = 100%)
+    DIRECTION_SLEW_RATE = 1.2  # radians per second
+    MAGNITUDE_SLEW_RATE = 1.8  # percent per second (1 = 100%)
+    ROTATIONAL_SLEW_RATE = 2.0  # percent per second (1 = 100%)
 
     # Chassis configuration
-    kTrackWidth = units.inchesToMeters(8.75 + 8.75)  # From YAGSL JSON offsets
+    TRACK_WIDTH = units.inchesToMeters(8.75 + 8.75)  # From YAGSL JSON offsets
     # Distance between centers of right and left wheels on robot
-    kWheelBase = units.inchesToMeters(8.75 + 8.75)  # From YAGSL JSON offsets
+    WHEEL_BASE = units.inchesToMeters(8.75 + 8.75)  # From YAGSL JSON offsets
 
     # Distance between front and back wheels on robot
-    kModulePositions = [
-        Translation2d(kWheelBase / 2, kTrackWidth / 2),
-        Translation2d(kWheelBase / 2, -kTrackWidth / 2),
-        Translation2d(-kWheelBase / 2, kTrackWidth / 2),
-        Translation2d(-kWheelBase / 2, -kTrackWidth / 2),
+    MODULE_POSITIONS = [
+        Translation2d(WHEEL_BASE / 2, TRACK_WIDTH / 2),
+        Translation2d(WHEEL_BASE / 2, -TRACK_WIDTH / 2),
+        Translation2d(-WHEEL_BASE / 2, TRACK_WIDTH / 2),
+        Translation2d(-WHEEL_BASE / 2, -TRACK_WIDTH / 2),
     ]
-    kDriveKinematics = SwerveDrive4Kinematics(*kModulePositions)
+    DRIVE_KINEMATICS = SwerveDrive4Kinematics(*MODULE_POSITIONS)
 
     # set it to True if you were using a ruler for zeroing and want to ignore the offsets below
-    kAssumeZeroOffsets = True
+    ASSUME_ZERO_OFFSET = True
 
     # set the above to == False, if you are using Rev zeroing tool (and you have to tinker with offsets below)
-    kFrontLeftChassisAngularOffset = -math.pi / 2
-    kFrontRightChassisAngularOffset = 0
-    kBackLeftChassisAngularOffset = math.pi
-    kBackRightChassisAngularOffset = math.pi / 2
+    FRONT_LEFT_ANGULAR_CHASSIS_OFFSET = -math.pi / 2
+    FRONT_RIGHT_ANGULAR_CHASSIS_OFFSET = 0
+    BACK_LEFT_ANGULAR_CHASSIS_OFFSET = math.pi
+    BACK_RIGHT_ANGULAR_CHASSIS_OFFSET = math.pi / 2
 
-    # SPARK MAX Parmeters
-    kFrontLeftAngularOffset = 156.445
-    kFrontLeftDriveMotorInverted = False
-    kFrontLeftTurningMotorInverted = False
+    # SPARK MAX Parameters
+    FRONT_LEFT_ANGULAR_OFFSET = 156.445
+    FRONT_LEFT_DRIVE_MOTOR_INVERTED = False
+    FRONT_LEFT_TURNING_MOTOR_INVERTED = False
 
-    kFrontRightAngularOffset = 30.498
-    kFrontRightDriveMotorInverted = False
-    kFrontRightTurningMotorInverted = False
+    FRONT_RIGHT_ANGULAR_OFFSET = 30.498
+    FRONT_RIGHT_DRIVE_MOTOR_INVERTED = False
+    FRONT_RIGHT_TURNING_MOTOR_INVERTED = False
 
-    kRearLeftAngularOffset = 133.418
-    kRearLeftDriveMotorInverted = False
-    kRearLeftTurningMotorInverted = False
+    REAR_LEFT_ANGULAR_OFFSET = 133.418
+    REAR_LEFT_DRIVE_MOTOR_INVERTED = False
+    REAR_LEFT_TURNING_MOTOR_INVERTED = False
 
-    kRearRightAngularOffset = 99.404
-    kRearRightDriveMotorInverted = False
-    kRearRightTurningMotorInverted = False
+    REAR_RIGHT_ANGULAR_OFFSET = 99.404
+    REAR_RIGHT_DRIVE_MOTOR_INVERTED = False
+    REAR_RIGHT_TURNING_MOTOR_INVERTED = False
 
-    kGyroReversed = False  # (affects field-relative driving)
-    kGyroDeviceId = 35
+    GYRO_REVERSED = False  # (affects field-relative driving)
+
 
     GYRO_TYPE_NAVX = "navx"
     GYRO_TYPE_PIGEON2 = "pigeon2"
@@ -96,13 +96,13 @@ def getSwerveDrivingMotorConfig(driveMotorInverted: bool) -> SparkBaseConfig:
     drivingConfig = SparkBaseConfig()
     drivingConfig.inverted(driveMotorInverted)
     drivingConfig.setIdleMode(SparkBaseConfig.IdleMode.kBrake)
-    drivingConfig.smartCurrentLimit(ModuleConstants.kDrivingMotorCurrentLimit)
-    drivingConfig.encoder.positionConversionFactor(ModuleConstants.kDrivingEncoderPositionFactor)
-    drivingConfig.encoder.velocityConversionFactor(ModuleConstants.kDrivingEncoderVelocityFactor)
+    drivingConfig.smartCurrentLimit(ModuleConstants.DRIVING_MOTOR_CURRENT_LIMIT)
+    drivingConfig.encoder.positionConversionFactor(ModuleConstants.DRIVING_ENCODER_POSITION_FACTOR)
+    drivingConfig.encoder.velocityConversionFactor(ModuleConstants.DRIVING_ENCODER_VELOCITY_FACTOR)
     drivingConfig.closedLoop.setFeedbackSensor(ClosedLoopConfig.FeedbackSensor.kPrimaryEncoder)
-    drivingConfig.closedLoop.pid(ModuleConstants.kDrivingP, ModuleConstants.kDrivingI, ModuleConstants.kDrivingD)
-    drivingConfig.closedLoop.velocityFF(ModuleConstants.kDrivingFF)
-    drivingConfig.closedLoop.outputRange(ModuleConstants.kDrivingMinOutput, ModuleConstants.kDrivingMaxOutput)
+    drivingConfig.closedLoop.pid(ModuleConstants.DrivingP, ModuleConstants.DrivingI, ModuleConstants.DrivingD)
+    drivingConfig.closedLoop.velocityFF(ModuleConstants.DrivingFF)
+    drivingConfig.closedLoop.outputRange(ModuleConstants.DRIVING_MIN_OUTPUT, ModuleConstants.DRIVING_MAX_OUTPUT)
     return drivingConfig
 
 
@@ -110,101 +110,90 @@ def getSwerveTurningMotorConfig(turnMotorInverted: bool) -> SparkBaseConfig:
     turningConfig = SparkBaseConfig()
     turningConfig.inverted(turnMotorInverted)
     turningConfig.setIdleMode(SparkBaseConfig.IdleMode.kBrake)
-    turningConfig.smartCurrentLimit(ModuleConstants.kTurningMotorCurrentLimit)
-    turningConfig.absoluteEncoder.positionConversionFactor(ModuleConstants.kTurningEncoderPositionFactor)
-    turningConfig.absoluteEncoder.velocityConversionFactor(ModuleConstants.kTurningEncoderVelocityFactor)
-    turningConfig.absoluteEncoder.inverted(ModuleConstants.kTurningEncoderInverted)
+    turningConfig.smartCurrentLimit(ModuleConstants.TURNING_MOTOR_CURRENT_LIMIT)
+    turningConfig.absoluteEncoder.positionConversionFactor(ModuleConstants.TURNING_ENCODER_POSITION_FACTOR)
+    turningConfig.absoluteEncoder.velocityConversionFactor(ModuleConstants.TURNING_ENCODER_VELOCITY_FACTOR)
+    turningConfig.absoluteEncoder.inverted(ModuleConstants.TURNING_ENCODER_INVERTED)
     turningConfig.closedLoop.setFeedbackSensor(ClosedLoopConfig.FeedbackSensor.kAbsoluteEncoder)
-    turningConfig.closedLoop.pid(ModuleConstants.kTurningP, ModuleConstants.kTurningI, ModuleConstants.kTurningD)
-    turningConfig.closedLoop.velocityFF(ModuleConstants.kTurningFF)
-    turningConfig.closedLoop.outputRange(ModuleConstants.kTurningMinOutput, ModuleConstants.kTurningMaxOutput)
+    turningConfig.closedLoop.pid(ModuleConstants.TurningP, ModuleConstants.TurningI, ModuleConstants.TurningD)
+    turningConfig.closedLoop.velocityFF(ModuleConstants.TurningFF)
+    turningConfig.closedLoop.outputRange(ModuleConstants.TURNING_MIN_OUTPUT, ModuleConstants.TURNING_MAX_OUTPUT)
     turningConfig.closedLoop.positionWrappingEnabled(True)
-    turningConfig.closedLoop.positionWrappingInputRange(0, ModuleConstants.kTurningEncoderPositionFactor)
+    turningConfig.closedLoop.positionWrappingInputRange(0, ModuleConstants.TURNING_ENCODER_POSITION_FACTOR)
     return turningConfig
 
 
 class ModuleConstants:
     # WATCH OUT:
     #  - one or both of two constants below need to be flipped from True to False (by trial and error)
-    #  , depending which swerve module you have (MK4i, MK4n, Rev, WCP, ThriftyBot, etc)
-    kTurningEncoderInverted = False
-    kTurningMotorInverted = False
+    #    depending on which swerve module you have (MK4i, MK4n, Rev, WCP, ThriftyBot, etc.)
+    TURNING_ENCODER_INVERTED = False
+    TURNING_MOTOR_INVERTED = False
 
     # The MAXSwerve module can be configured with one of three pinion gears: 12T, 13T, or 14T.
     # This changes the drive speed of the module (a pinion gear with more teeth will result in a
     # robot that drives faster).
-    kDrivingMotorPinionTeeth = 14
+    DRIVING_MOTOR_PINION_TEETH = 14
 
     # Calculations required for driving motor conversion factors and feed forward
-    kDrivingMotorFreeSpeedRps = NeoMotorConstants.kFreeSpeedRpm / 60
-    kWheelDiameterMeters = 0.0762
-    kWheelCircumferenceMeters = kWheelDiameterMeters * math.pi
+    DRIVING_MOTOR_FREE_SPEED_RPS = NeoMotorConstants.FREE_SPEED_RPM / 60
+    WHEEL_DIAMETER_METERS = 0.0762
+    WHEEL_CIRCUMFERENCE_METERS = WHEEL_DIAMETER_METERS * math.pi
     # 45 teeth on the wheel's bevel gear, 22 teeth on the first-stage spur gear, 15 teeth on the bevel pinion
-    kDrivingMotorReduction = (45.0 * 22) / (kDrivingMotorPinionTeeth * 15)
-    kDriveWheelFreeSpeedRps = (
-                                      kDrivingMotorFreeSpeedRps * kWheelCircumferenceMeters
-                              ) / kDrivingMotorReduction
+    DRIVING_MOTOR_REDUCTION = (45.0 * 22) / (DRIVING_MOTOR_PINION_TEETH * 15)
+    DRIVE_WHEEL_FREE_SPEED_RPS = (DRIVING_MOTOR_FREE_SPEED_RPS * WHEEL_CIRCUMFERENCE_METERS) / DRIVING_MOTOR_REDUCTION
 
-    kDrivingEncoderPositionFactor = (
-                                            kWheelDiameterMeters * math.pi
-                                    ) / kDrivingMotorReduction  # meters
-    kDrivingEncoderVelocityFactor = (
-                                            (kWheelDiameterMeters * math.pi) / kDrivingMotorReduction
-                                    ) / 60.0  # meters per second
+    DRIVING_ENCODER_POSITION_FACTOR = (WHEEL_DIAMETER_METERS * math.pi) / DRIVING_MOTOR_REDUCTION  # meters
+    DRIVING_ENCODER_VELOCITY_FACTOR = ((
+                                                   WHEEL_DIAMETER_METERS * math.pi) / DRIVING_MOTOR_REDUCTION) / 60.0  # meters per second
 
-    kTurningEncoderPositionFactor = math.tau  # radian
-    kTurningEncoderVelocityFactor = math.tau / 60.0  # radians per second
+    TURNING_ENCODER_POSITION_FACTOR = math.tau  # radian
+    TURNING_ENCODER_VELOCITY_FACTOR = math.tau / 60.0  # radians per second
 
-    kTurningEncoderPositionPIDMinInput = 0  # radian
-    kTurningEncoderPositionPIDMaxInput = kTurningEncoderPositionFactor  # radian
+    TURNING_ENCODER_POSITION_PID_MIN_INPUT = 0  # radian
+    TURNING_ENCODER_POSITION_PID_MAX_INPUT = TURNING_ENCODER_POSITION_FACTOR  # radian
 
-    kDrivingP = 0.04
-    kDrivingI = 0
-    kDrivingD = 0
-    kDrivingFF = 1 / kDriveWheelFreeSpeedRps
-    kDrivingMinOutput = -1
-    kDrivingMaxOutput = 1
+    DrivingP = 0.04
+    DrivingI = 0
+    DrivingD = 0
+    DrivingFF = 1 / DRIVE_WHEEL_FREE_SPEED_RPS
+    DRIVING_MIN_OUTPUT = -1
+    DRIVING_MAX_OUTPUT = 1
 
-    kTurningP = 1  # can be dialed down if you see oscillations in the turning motor
-    kTurningI = 0
-    kTurningD = 0
-    kTurningFF = 0
-    kTurningMinOutput = -1
-    kTurningMaxOutput = 1
+    TurningP = 1  # can be dialed down if you see oscillations in the turning motor
+    TurningI = 0
+    TurningD = 0
+    TurningFF = 0
+    TURNING_MIN_OUTPUT = -1
+    TURNING_MAX_OUTPUT = 1
 
-    kDrivingMotorIdleMode = SparkBase.IdleMode.kBrake
-    kTurningMotorIdleMode = SparkBase.IdleMode.kBrake
+    # DrivingMotorIdleMode = SparkBase.IdleMode.kBrake
+    # TurningMotorIdleMode = SparkBase.IdleMode.kBrake
 
-    kDrivingMotorCurrentLimit = 50  # amp
-    kTurningMotorCurrentLimit = 20  # amp
+    DRIVING_MOTOR_CURRENT_LIMIT = 50  # amp
+    TURNING_MOTOR_CURRENT_LIMIT = 20  # amp
 
-    kDrivingMinSpeedMetersPerSecond = 0.01
+    MIN_DRIVING_SPEED = 0.01  # Meters per second
 
 
 class OIConstants:
-    kDriverControllerPort = 0
-    kDriveDeadband = 0.05
+    DRIVE_DEADBAND = 0.05
 
-
-class CANIds:
-    kArmMotorRight = 13
-    kArmMotorLeft = 12
 
 
 class AutoConstants:
-    kUseSqrtControl = True  # improves arrival time and precision for simple driving commands
+    USE_SQRT_CONTROL = True  # improves arrival time and precision for simple driving commands
 
     # below are really trajectory constants
-    kMaxSpeedMetersPerSecond = 3
-    kMaxAccelerationMetersPerSecondSquared = 3
-    kMaxAngularSpeedRadiansPerSecond = math.pi
-    kMaxAngularSpeedRadiansPerSecondSquared = math.pi
+    MAX_SPEED_METERS_PER_SECOND = 3
+    MAX_ACCELERATION_METERS_PER_SECOND_SQUARED = 3
+    MAX_ANGULAR_SPEED_RADIANS_PER_SECOND = math.pi
+    MAX_ANGULAR_SPEED_RADIANS_PER_SECOND_SQUARED = math.pi
 
-    kPXController = 1
-    kPYController = 1
-    kPThetaController = 0.67
+    PX_CONTROLLER = 1
+    PY_CONTROLLER = 1
+    P_THETA_CONTROLLER = 0.67
 
     # Constraint for the motion profiled robot angle controller
-    kThetaControllerConstraints = TrapezoidProfileRadians.Constraints(
-        kMaxAngularSpeedRadiansPerSecond, kMaxAngularSpeedRadiansPerSecondSquared
-    )
+    THETA_CONTROLLER_CONSTRAINTS = TrapezoidProfileRadians.Constraints(MAX_ANGULAR_SPEED_RADIANS_PER_SECOND,
+                                                                       MAX_ANGULAR_SPEED_RADIANS_PER_SECOND_SQUARED)

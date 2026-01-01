@@ -266,11 +266,11 @@ class SwerveTrajectory(JerkyTrajectory):
 
         # Create config for trajectory
         config = TrajectoryConfig(
-            AutoConstants.kMaxSpeedMetersPerSecond * abs(self.speed),
-            AutoConstants.kMaxAccelerationMetersPerSecondSquared,
+            AutoConstants.MAX_SPEED_METERS_PER_SECOND * abs(self.speed),
+            AutoConstants.MAX_ACCELERATION_METERS_PER_SECOND_SQUARED,
         )
         # Add kinematics to ensure max speed is actually obeyed
-        config.setKinematics(DriveConstants.kDriveKinematics)
+        config.setKinematics(DriveConstants.DRIVE_KINEMATICS)
 
         currentPose = self.drivetrain.getPose()
         currentPoint, currentHeading = currentPose.translation(), currentPose.rotation()
@@ -295,23 +295,23 @@ class SwerveTrajectory(JerkyTrajectory):
             config,
         )
         thetaController = ProfiledPIDControllerRadians(
-            AutoConstants.kPThetaController,
+            AutoConstants.P_THETA_CONTROLLER,
             0,
             0,
-            AutoConstants.kThetaControllerConstraints,
+            AutoConstants.THETA_CONTROLLER_CONSTRAINTS,
         )
         thetaController.enableContinuousInput(-math.pi, math.pi)
 
         driveController = HolonomicDriveController(
-            PIDController(AutoConstants.kPXController, 0, 0),
-            PIDController(AutoConstants.kPXController, 0, 0),
+            PIDController(AutoConstants.PX_CONTROLLER, 0, 0),
+            PIDController(AutoConstants.PY_CONTROLLER, 0, 0),
             thetaController,
         )
 
         swerveControllerCommand = commands2.SwerveControllerCommand(
             trajectory,
             self.drivetrain.getPose,  # Functional interface to feed supplier
-            DriveConstants.kDriveKinematics,
+            DriveConstants.DRIVE_KINEMATICS,
             driveController,
             self.drivetrain.setModuleStates,
             (self.drivetrain,),

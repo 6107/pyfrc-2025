@@ -32,7 +32,7 @@ from frc_2025.subsystems.swervedrive.constants import AutoConstants
 
 class AimToDirectionConstants:
     kP = 0.001  # 0.002 is the default, but you must calibrate this to your robot
-    kUseSqrtControl = AutoConstants.kUseSqrtControl
+    kUseSqrtControl = AutoConstants.USE_SQRT_CONTROL
 
     kMinTurnSpeed = 0.025  # turning slower than this is unproductive for the motor (might not even spin)
     kAngleToleranceDegrees = 4.0  # plus minus 3 degrees is "close enough"
