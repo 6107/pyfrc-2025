@@ -38,7 +38,7 @@ from wpimath.kinematics import ChassisSpeeds, SwerveModuleState, SwerveDrive4Kin
     SwerveDrive4Odometry, SwerveModulePosition
 from wpimath.units import degrees, degrees_per_second, inchesToMeters
 
-from frc_2025.reefscape import RED_TEST_POSE, BLUE_TEST_POSE
+from frc_2025.field import RED_TEST_POSE, BLUE_TEST_POSE
 from frc_2025.subsystems import constants
 from frc_2025.subsystems.constants import DeviceID
 from frc_2025.subsystems.swervedrive import swerveutils
@@ -148,7 +148,7 @@ class DriveSubsystem(Subsystem):
             driveMotorInverted=DriveConstants.FRONT_LEFT_DRIVE_MOTOR_INVERTED,
             turnMotorInverted=DriveConstants.FRONT_LEFT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
-            cancoder_device_id=DeviceID.DRIVETRAIN_LEFT_FRONT_ENCODER_ID,
+            encoder_analog_port=DeviceID.DRIVETRAIN_LEFT_FRONT_ENCODER_ID,
             label="lf"
         )
 
@@ -159,7 +159,7 @@ class DriveSubsystem(Subsystem):
             driveMotorInverted=DriveConstants.FRONT_RIGHT_DRIVE_MOTOR_INVERTED,
             turnMotorInverted=DriveConstants.FRONT_RIGHT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
-            cancoder_device_id=DeviceID.DRIVETRAIN_RIGHT_FRONT_ENCODER_ID,
+            encoder_analog_port=DeviceID.DRIVETRAIN_RIGHT_FRONT_ENCODER_ID,
             label="rf"
         )
 
@@ -170,7 +170,7 @@ class DriveSubsystem(Subsystem):
             driveMotorInverted=DriveConstants.REAR_LEFT_DRIVE_MOTOR_INVERTED,
             turnMotorInverted=DriveConstants.REAR_LEFT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
-            cancoder_device_id=DeviceID.DRIVETRAIN_LEFT_REAR_ENCODER_ID,
+            encoder_analog_port=DeviceID.DRIVETRAIN_LEFT_REAR_ENCODER_ID,
             label="lb"
         )
 
@@ -181,7 +181,7 @@ class DriveSubsystem(Subsystem):
             driveMotorInverted=DriveConstants.REAR_RIGHT_DRIVE_MOTOR_INVERTED,
             turnMotorInverted=DriveConstants.REAR_RIGHT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
-            cancoder_device_id=DeviceID.DRIVETRAIN_RIGHT_REAR_ENCODER_ID,
+            encoder_analog_port=DeviceID.DRIVETRAIN_RIGHT_REAR_ENCODER_ID,
             label="rb"
         )
         self.swerve_modules: List[MAXSwerveModule] = [self.frontLeft, self.frontRight, self.rearLeft, self.rearRight]

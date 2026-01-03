@@ -85,7 +85,6 @@ class DriveConstants:
 
     GYRO_REVERSED = False  # (affects field-relative driving)
 
-
     GYRO_TYPE_NAVX = "navx"
     GYRO_TYPE_PIGEON2 = "pigeon2"
 

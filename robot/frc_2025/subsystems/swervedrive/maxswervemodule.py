@@ -15,18 +15,17 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 
-import math
 from typing import Union
 
 import wpilib
 from phoenix6.hardware import CANcoder
 from rev import SparkMax, SparkFlex, SparkLowLevel, SparkBase
-from wpilib import AnalogPotentiometer, RobotBase
+from wpilib import RobotBase
 from wpimath.geometry import Rotation2d
 from wpimath.kinematics import SwerveModuleState, SwerveModulePosition
 
 from frc_2025.subsystems.swervedrive.constants import ModuleConstants, getSwerveDrivingMotorConfig, \
-    getSwerveTurningMotorConfig, DriveConstants
+    getSwerveTurningMotorConfig
 
 
 class MAXSwerveModule:
@@ -36,7 +35,6 @@ class MAXSwerveModule:
                  turnMotorInverted: bool = True,
                  motorControllerType: Union[type(SparkFlex), type(SparkMax)] = SparkFlex,
                  encoder_analog_port: int = -1,
-                 cancoder_device_id: int = -1,
                  turning_encoder_offset: float = 0.0,
                  label: str = ""):
         """
@@ -45,17 +43,10 @@ class MAXSwerveModule:
         MAXSwerve Module built with NEOs, SPARKS MAX, and a through-bore Encoder.
         """
         self.label = label
-        self.chassisAngularOffset = 0
         self.desiredState = SwerveModuleState(0.0, Rotation2d())
 
         self.drivingSparkMax = motorControllerType(drivingCANId, SparkLowLevel.MotorType.kBrushless)
         self.turningSparkMax = motorControllerType(turningCANId, SparkLowLevel.MotorType.kBrushless)
-
-        # TODO: Java code passed in Cancoder for each module but there was also a single
-        #       phoenix6 Pigeon2 installed.
-        #
-        # TODO: Currently we do not do anything with this object. Ask Patrick if we see him.
-        self.cancorder = CANcoder(cancoder_device_id) if cancoder_device_id >= 0 else None
 
         # Factory reset, so we get the SPARKS MAX to a known state before configuring
         # them. This is useful in case a SPARK MAX is swapped out.
@@ -68,6 +59,10 @@ class MAXSwerveModule:
                                        SparkBase.PersistMode.kPersistParameters)
 
         # Setup encoders and PID controllers for the driving and turning SPARKS MAX.
+        #
+        # The turning PID controller on the Spark Max should use its own internal
+        # relative encoder as the feedback device for ongoing control, but it is
+        # reset to the absolute position periodically or on startup.
         self.drivingEncoder = self.drivingSparkMax.getEncoder()
         self.turningEncoder = self.turningSparkMax.getAbsoluteEncoder()
 
@@ -75,15 +70,7 @@ class MAXSwerveModule:
         self.turningPIDController = self.turningSparkMax.getClosedLoopController()
 
         #  ---------------- ABSOLUTE ENCODER AND PID FOR TURNING  ------------------
-        # create the AnalogPotentiometer with the offset.  TODO: this probably has to be 5V hardware but need to check
-        # automatically always in radians and the turnover offset is built in, so the PID is easier
-        # TODO: double check that the scale factor is the same on the new thrifty potentiometers
-        if encoder_analog_port >= 0:
-            self.absolute_encoder = AnalogPotentiometer(encoder_analog_port,
-                                                        DriveConstants.k_analog_encoder_scale_factor * math.tau,
-                                                        -turning_encoder_offset)
-        else:
-            self.absolute_encoder = None
+        self.absolute_encoder = CANcoder(encoder_analog_port) if encoder_analog_port >= 0 else None
 
         self.chassisAngularOffset = chassisAngularOffset
         self.desiredState.angle = Rotation2d(self.turningEncoder.getPosition())
@@ -91,8 +78,8 @@ class MAXSwerveModule:
 
     def get_turn_encoder(self):
         # how we invert the absolute encoder if necessary (which it probably isn't in the standard mk4i config)
-        analog_reverse_multiplier = -1 if DriveConstants.k_reverse_analog_encoders else 1
-        return analog_reverse_multiplier * self.absolute_encoder.get()
+        position = self.absolute_encoder.get_absolute_position().value
+        return -position if ModuleConstants.TURNING_ENCODER_INVERTED else position
 
     def getState(self) -> SwerveModuleState:
         """Returns the current state of the module.
@@ -176,5 +163,13 @@ class MAXSwerveModule:
         """
         Zeroes all the SwerveModule encoders.
         """
+        if self.absolute_encoder is not None:
+            # Read the absolute position from the CANCoder
+            # TODO: Units might need conversion (rotations, degrees, or radians)
+            position = self.absolute_encoder.get_absolute_position().value
+        else:
+            position = 0
+
+        self.turningEncoder.setPosition(position)
         self.drivingEncoder.setPosition(0)
 

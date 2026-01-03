@@ -31,7 +31,7 @@ import inspect
 
 from pyfrc.physics.core import PhysicsInterface
 
-from frc_2025.reefscape import *
+from frc_2025.field import *
 from robot import MyRobot
 
 logger = logging.getLogger(__name__)

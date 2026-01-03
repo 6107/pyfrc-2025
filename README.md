@@ -5,9 +5,8 @@ for the CyberJagzz team. 2026 will be python based and by rewriting the
 2025 code in Python, we hope to see some design patterns or at least
 helper classes emerge to help us with the 2026 robotics challenge.
 
-Currently, this code has not been tested on an actual robot or in 
-the simulator.
-
+Currently, this code is working under the simulator and is currently
+being tested on the 2025 robot (drivetrain only).
 
 # Resources
 

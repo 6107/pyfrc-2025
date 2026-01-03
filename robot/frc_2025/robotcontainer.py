@@ -36,7 +36,7 @@ from lib_6107.commands.camera.follow_object import FollowObject, StopWhen
 from lib_6107.commands.drivetrain.aimtodirection import AimToDirection
 from lib_6107.commands.drivetrain.arcade_drive import ArcadeDrive
 from lib_6107.commands.drivetrain.reset_xy import ResetXY
-from lib_6107.commands.drivetrain.trajectory import SwerveTrajectory
+from lib_6107.commands.drivetrain.trajectory import SwerveTrajectory, JerkyTrajectory
 # from lib_6107.subsystems.photonvision_camera import PhotonVisionCamera
 from lib_6107.subsystems.limelight_camera import LimelightCamera
 from lib_6107.subsystems.limelight_localizer import LimelightLocalizer
@@ -67,6 +67,9 @@ class RobotContainer:
 
         # The driver's controller
         self.driver_controller = button.CommandXboxController(constants.DRIVER_CONTROLLER_PORT)
+
+        # TODO: WPILib has a wpimath.fileter.SlewRateLimiter to make joystick more gentle.  Look into this
+        #       See https://github.com/robotpy/examples/blob/main/SwerveBot/robot.py for an example
 
         # Shooter's controller
         self.controller_shooter: XboxController = XboxController(constants.SHOOTER_CONTROLLER_PORT)  # On USB-port
@@ -156,18 +159,18 @@ class RobotContainer:
         field_relative = self.robot_drive.field_relative
 
         # MacOS fixup
-        rightAxisX = XboxController.Axis.kRightX
+        right_axis_x = XboxController.Axis.kRightX
 
         if platform.system().lower() == "darwin":
             hid_axis = self.driver_controller.getHID().Axis
             if hid_axis.kRightX != 2:
-                rightAxisX = XboxController.Axis.kLeftTrigger
+                right_axis_x = XboxController.Axis.kLeftTrigger
 
         drive_cmd = HolonomicDrive(self,
                                    self.robot_drive,
                                    forwardSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftY),
                                    leftSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftX),
-                                   rotationSpeed=lambda: -self.driver_controller.getRawAxis(rightAxisX),
+                                   rotationSpeed=lambda: -self.driver_controller.getRawAxis(right_axis_x),
                                    deadband=OIConstants.DRIVE_DEADBAND,
                                    field_relative=field_relative,
                                    rateLimit=True,
@@ -379,7 +382,6 @@ class RobotContainer:
         # to compress the robot against the wall the tag is on.
 
         set_start_pose = ResetXY(x=8.7, y=7.3, heading_degrees=-180, drivetrain=self.robot_drive)
-
         trajectory = JerkyTrajectory(drivetrain=self.robot_drive,
                                      endpoint=(2.59, 3.99, 0),
                                      waypoints=[

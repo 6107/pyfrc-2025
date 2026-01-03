@@ -14,23 +14,10 @@
 #                                                                          #
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
-#
-# See the documentation for more details on how this works
-#
-# Documentation can be found at https://robotpy.readthedocs.io/projects/pyfrc/en/latest/physics.html
-#
-# The idea here is you provide a simulation object that overrides specific
-# pieces of WPILib, and modifies motors/sensors accordingly depending on the
-# state of the simulation. An example of this would be measuring a motor
-# moving for a set period of time, and then changing a limit switch to turn
-# on after that period of time. This can help you do more complex simulations
-# of your robot code without too much extra effort.
-#
-# Examples can be found at https://github.com/robotpy/examples
 
 import logging
-
 import math
+
 from wpimath.geometry import Pose2d, Rotation2d
 from wpimath.units import inchesToMeters
 
