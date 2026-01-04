@@ -22,20 +22,24 @@ from typing import Optional
 
 from commands2 import Subsystem
 from ntcore import NetworkTableInstance
-from wpilib import Timer
+from wpilib import Timer, SmartDashboard
 
 logger = logging.getLogger(__name__)
 
 
 class PhotonVisionCamera(Subsystem):
-    def __init__(self, name: Optional[str] = "photonvision") -> None:
+    def __init__(self, container: 'RobotContainer', name: Optional[str] = "photonvision") -> None:
         super().__init__()
 
         self.name = name
+        self._robot = container.robot
 
         instance = NetworkTableInstance.getDefault()
         self.table = instance.getTable("photonvision").getSubTable(self.name)
         self._path = self.table.getPath()
+
+        # TODO: If the reset of this is similar or identical to LimeLight, see about doing
+        #       a base class for a camera subsystem
 
         self.pipelineIndexRequest = self.table.getIntegerTopic("pipelineIndexRequest").publish()
         self.pipelineIndex = self.table.getIntegerTopic("pipelineIndexState").getEntry(-1)
@@ -99,3 +103,24 @@ class PhotonVisionCamera(Subsystem):
             logger.warning(f"Camera {self.name}: {'UPDATING' if heartbeating else 'NO LONGER UPDATING'}")
 
         self.heartbeating = heartbeating
+
+        self.dashboard_periodic()
+
+    def dashboard_initialize(self) -> None:
+        """
+        Configure the SmartDashboard for this subsystem
+        """
+        # SmartDashboard.putData("Field", self.field)
+        SmartDashboard.putString('Camera/name', self.name)
+        SmartDashboard.putString('Camera/type', "PhotonVision")
+
+    def dashboard_periodic(self) -> None:
+        """
+        Called from periodic function to update dashboard elements for this subsystem
+        """
+        divisor = 10 if self._robot.isEnabled() else 20
+        update_dash = self._robot.counter % divisor == 0
+
+        if update_dash:
+            SmartDashboard.putString('Camera/heartbeat', "Alive" if self.heartbeating else "Dead")
+            SmartDashboard.putNumber('Camera/last-heartbeat', self.lastHeartbeatTime)

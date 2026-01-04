@@ -501,7 +501,7 @@ class DriveSubsystem(Subsystem):
         """
         Configure the driver and shooter joystick controls here
         """
-        if self.front_camera is not None and self.self.localizer is not None:
+        if self.front_camera is not None:
             def turn_to_object() -> None:
                 """
                 This command is used to have the robot camera
@@ -516,9 +516,12 @@ class DriveSubsystem(Subsystem):
 
             # TODO: Make the button assignment come from a constants.py file / list somewhere.
             #       so we can keep track what is assigned
+            # from lib_6107.commands.camera.turn_to_object import turn_to_object
+            #
             # button = self.driverController.button(XboxController.Button.kB)
             # button.whileTrue(RunCommand(turn_to_object, self))
-            # button.onFalse(InstantCommand(lambda: self.drive(0, 0, 0,
+            # button.onFalse(InstantCommand(lambda: self.drive(0, 0, 0, False, False)
+            pass
 
         pass  # TODO: Add me
 
@@ -556,7 +559,6 @@ class DriveSubsystem(Subsystem):
 
         # Update SmartDashboard for this subsystem
         self.dashboard_periodic()
-
 
     def periodic_other(self) -> None:
         # TODO: Has team 2429 vision support. Keep until we can use it
@@ -1107,6 +1109,13 @@ class DriveSubsystem(Subsystem):
             raise NotImplementedError(f"IMU/Gyro type of {DriveConstants.GYRO_TYPE} not implemented")
 
         return -rate if DriveConstants.GYRO_REVERSED else rate
+
+    def getTurnRate(self) -> float:
+        """Returns the turn rate of the robot (in radians per second)
+
+        :returns: The turn rate of the robot, in radians per second
+        """
+        return math.radians(self.getTurnRateDegreesPerSec())
 
     ##########################################################
     # TODO: All the following are related to team 2429 and pathplanner. These have not been tested and

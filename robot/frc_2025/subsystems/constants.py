@@ -20,6 +20,7 @@
 from enum import IntEnum, unique
 
 from phoenix6.controls.position_voltage import PositionVoltage
+from wpimath.geometry import Translation3d, Rotation2d
 
 
 ###############################################################################
@@ -85,8 +86,26 @@ EL_POS_IN = PositionVoltage(0.0, slot=0)
 START_X = 0
 START_Y = 0
 
-HAS_FRONT_CAMERA = False
-USE_VISION_ODOMETRY = False
+CAMERA_TYPE_NONE = ""
+CAMERA_TYPE_LIMELIGHT = "Limelight"  # Currently Limelight 2 only
+CAMERA_TYPE_PHOTONVISION = "PhotonVision"
+
+if 2:
+    FRONT_CAMERA_TYPE = CAMERA_TYPE_NONE
+    REAR_CAMERA_TYPE = CAMERA_TYPE_NONE
+else:
+    FRONT_CAMERA_TYPE = CAMERA_TYPE_LIMELIGHT
+    REAR_CAMERA_TYPE = CAMERA_TYPE_PHOTONVISION
+
+FRONT_CAMERA_POSE_AND_HEADING = {
+    "Pose": Translation3d(x=0.40, y=-0.15, z=0.5),
+    "Heading": Rotation2d.fromDegrees(0.0)
+}
+
+REAR_CAMERA_POSE_AND_HEADING = {
+    "Pose": Translation3d(x=0.40, y=-0.15, z=0.5),
+    "Heading": Rotation2d.fromDegrees(180.0)
+}
 
 SWERVE_DEBUG_MESSAGES = True
 # multiple attempts at tags this year - TODO - use l/r/ or up/down tilted cameras again, gives better data

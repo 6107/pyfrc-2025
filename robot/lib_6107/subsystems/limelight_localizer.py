@@ -46,12 +46,15 @@ class CameraState:
 
 
 class LimelightLocalizer(Subsystem):
-    def __init__(self, drivetrain, flipIfRed=False):
+    def __init__(self, container, drivetrain, flipIfRed=False):
         super().__init__()
 
         assert hasattr(drivetrain, "getHeading"), "drivetrain must have getHeading() for localizer to work"
         assert hasattr(drivetrain, "adjustOdometry"), "drivetrain must have adjustOdometry() for localizer to work"
         assert hasattr(drivetrain, "getPose"), "drivetrain must have getPose() for localizer to work"
+        assert hasattr(drivetrain, "getTurnRate"), "drivetrain must have getTurnRate() for localizer to work"
+
+        self._robot = container.robot
         self.drivetrain = drivetrain
 
         from getpass import getuser
@@ -84,10 +87,10 @@ class LimelightLocalizer(Subsystem):
         :param maxRotationSpeed: when robot spins too fast (in degrees per second), camera will be ignored
         """
         assert isinstance(camera, LimelightCamera), "you can only add LimelightCamera(s) to LimelightLocalizer"
-        assert camera.cameraName not in self.cameras, f"camera {camera.cameraName} already added to LimelightLocalizer"
-        self.cameras[camera.cameraName] = CameraState(camera, cameraPoseOnRobot,
-                                                      cameraHeadingOnRobot, minPercentFrame,
-                                                      maxRotationSpeed)
+        assert camera.name not in self.cameras, f"camera {camera.name} already added to LimelightLocalizer"
+        self.cameras[camera.name] = CameraState(camera, cameraPoseOnRobot,
+                                                cameraHeadingOnRobot, minPercentFrame,
+                                                maxRotationSpeed)
         camera.addLocalizer()
 
     def setAllowed(self, value: bool):

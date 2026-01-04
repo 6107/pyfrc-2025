@@ -22,12 +22,12 @@ from typing import List, Optional, Callable, Dict, Any
 
 from commands2 import Subsystem, Command, RunCommand, InstantCommand, cmd, button
 from wpilib import RobotBase, XboxController, SmartDashboard, SendableChooser, Field2d, DriverStation
-from wpimath.geometry import Translation3d, Rotation2d
 
 from frc_2025 import constants
 from frc_2025.commands.holonomicdrive import HolonomicDrive
 from frc_2025.subsystems.alge_subsystem import AlgeSubsystem, AlgeRoller, AlgeRotation
-from frc_2025.subsystems.constants import DeviceID, HAS_FRONT_CAMERA, USE_VISION_ODOMETRY
+from frc_2025.subsystems.constants import DeviceID, FRONT_CAMERA_TYPE, CAMERA_TYPE_LIMELIGHT, \
+    CAMERA_TYPE_PHOTONVISION, FRONT_CAMERA_POSE_AND_HEADING, REAR_CAMERA_TYPE
 from frc_2025.subsystems.coral_intake import LeftCoralIntake, RightCoralIntake, ExtendCoralIntake
 from frc_2025.subsystems.elevator_subsystem import Elevator
 from frc_2025.subsystems.swervedrive.constants import OIConstants
@@ -37,9 +37,10 @@ from lib_6107.commands.drivetrain.aimtodirection import AimToDirection
 from lib_6107.commands.drivetrain.arcade_drive import ArcadeDrive
 from lib_6107.commands.drivetrain.reset_xy import ResetXY
 from lib_6107.commands.drivetrain.trajectory import SwerveTrajectory, JerkyTrajectory
-# from lib_6107.subsystems.photonvision_camera import PhotonVisionCamera
 from lib_6107.subsystems.limelight_camera import LimelightCamera
 from lib_6107.subsystems.limelight_localizer import LimelightLocalizer
+from lib_6107.subsystems.photon_localizer import PhotonLocalizer
+from lib_6107.subsystems.photonvision_camera import PhotonVisionCamera
 
 # TODO: path planner stuff needed?
 
@@ -79,35 +80,64 @@ class RobotContainer:
         #
         # Vision support
         camera_subsystems = []
-        self.front_camera = None
         self.localizer = None
         self.vision_odometry = False
         drive_kwargs: Dict[str, Any] = {}
 
-        if HAS_FRONT_CAMERA:
+        if FRONT_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION:
+            self.front_camera = PhotonVisionCamera(self, name="front-camera")
+
+        elif FRONT_CAMERA_TYPE == CAMERA_TYPE_LIMELIGHT:
+            self.front_camera = LimelightCamera(self, name="front-camera")
+
+        else:
+            self.front_camera = None
+
+        if REAR_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION:
+            self.rear_camera = PhotonVisionCamera(self, name="rear-camera")
+
+        elif REAR_CAMERA_TYPE == CAMERA_TYPE_LIMELIGHT:
+            self.rear_camera = LimelightCamera(self, name="rear-camera")
+
+        else:
+            self.rear_camera = None
+
+        if self.front_camera or self.rear_camera:
             # Primary camera
             drive_kwargs["Cameras"] = {}
 
-            front = drive_kwargs["Cameras"]["Front"]
+            if self.front_camera:
+                drive_kwargs["Cameras"]["Front"] = {
+                    "Camera": self.front_camera
+                }
+                camera_subsystems.append(self.front_camera)
 
-            # self.front_camera = PhotonVisionCamera("front-camera") if k_has_front_camera else None
-            self.front_camera = LimelightCamera("front-camera")
-            front["Camera"] = self.front_camera
-            camera_subsystems.append(self.front_camera)
-
-            if USE_VISION_ODOMETRY:
-                # TODO: Make pose and heading below as constants
-                self.localizer = LimelightLocalizer(self)
-                self.localizer.addCamera(self.front_camera,
-                                         cameraPoseOnRobot=Translation3d(x=0.40, y=-0.15, z=0.5),
-                                         cameraHeadingOnRobot=Rotation2d.fromDegrees(0.0))
-                front["Localizer"] = self.localizer
-                camera_subsystems.append(self.localizer)
+            if self.rear_camera:
+                drive_kwargs["Cameras"]["Rear"] = {
+                    "Camera": self.rear_camera
+                }
+                camera_subsystems.append(self.rear_camera)
 
         # # From the 2025 Java (TODO: Get the JSON files from swerve/neo and update our python code/validate it)
         # filePath = os.path.join(getDeployDirectory(), "swerve/neo")
         # self.robot_drive = SwerveSubsystem(filePath)
         self.robot_drive = DriveSubsystem(self, **drive_kwargs)
+
+        if FRONT_CAMERA_TYPE == CAMERA_TYPE_LIMELIGHT:
+            # TODO: Make pose and heading below as constants
+            self.localizer = LimelightLocalizer(self, self.robot_drive)
+            self.localizer.addCamera(self.front_camera,
+                                     cameraPoseOnRobot=FRONT_CAMERA_POSE_AND_HEADING["Pose"],
+                                     cameraHeadingOnRobot=FRONT_CAMERA_POSE_AND_HEADING["Heading"])
+            drive_kwargs["Cameras"]["Front"]["Localizer"] = self.localizer
+            camera_subsystems.append(self.localizer)
+
+        elif FRONT_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION:
+            self.localizer = PhotonLocalizer(self, self.robot_drive, "2025-reefscape.json")
+            drive_kwargs["Cameras"]["Front"]["Localizer"] = self.localizer
+
+        else:
+            self.localizer = None
 
         # TODO: Create subsystems for the following and then commands instead of the periodic check
         self._elevator: Subsystem = Elevator(DeviceID.ELEVATOR_DEVICE_ID,

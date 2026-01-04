@@ -22,16 +22,18 @@ from typing import Optional
 
 from commands2 import Subsystem
 from ntcore import NetworkTableInstance
-from wpilib import Timer
+from wpilib import Timer, SmartDashboard
 
 logger = logging.getLogger(__name__)
 
 
 class LimelightCamera(Subsystem):
-    def __init__(self, name: Optional[str] = "limelight") -> None:
+    def __init__(self, container: 'RobotContainer', name: Optional[str] = "limelight") -> None:
+
         super().__init__()
 
         self.name = name
+        self._robot = container.robot
 
         instance = NetworkTableInstance.getDefault()
         self.table = instance.getTable(self.name)
@@ -47,9 +49,29 @@ class LimelightCamera(Subsystem):
         self.ty = self.table.getDoubleTopic("ty").getEntry(0.0)
         self.ta = self.table.getDoubleTopic("ta").getEntry(0.0)
         self.hb = self.table.getIntegerTopic("hb").getEntry(0)
+
         self.lastHeartbeat = 0
         self.lastHeartbeatTime = 0
         self.heartbeating = False
+        self.ticked = False
+
+        self.localizerSubscribed = False
+
+    def addLocalizer(self):
+        if self.localizerSubscribed:
+            return
+
+        self.localizerSubscribed = True
+        # if we want MegaTag2 localizer to work, we need to be publishing two things (to the camera):
+        #   1. what robot's yaw is ("yaw=0 degrees" means "facing North", "yaw=90 degrees" means "facing West", etc.)
+        #   2. where is this camera sitting on the robot (e.g. y=-0.2 meters to the right, x=0.1 meters fwd from center)
+        self.robotOrientationSetRequest = self.table.getDoubleArrayTopic("robot_orientation_set").publish()
+        self.cameraPoseSetRequest = self.table.getDoubleArrayTopic("camerapose_robotspace_set").publish()
+        self.imuModeRequest = self.table.getIntegerTopic("imumode_set").publish()  # this is only for Limelight 4
+
+        # and we can then receive the localizer results from the camera back
+        self.botPose = self.table.getDoubleArrayTopic("botpose_orb_wpiblue").getEntry([])
+        self.botPoseFlipped = self.table.getDoubleArrayTopic("botpose_orb_wpired").getEntry([])
 
     def setPipeline(self, index: int):
         self.pipelineIndexRequest.set(float(index))
@@ -89,3 +111,24 @@ class LimelightCamera(Subsystem):
             logger.warning(f"Camera {self.name}: {'UPDATING' if heartbeating else 'NO LONGER UPDATING'}")
 
         self.heartbeating = heartbeating
+
+        self.dashboard_periodic()
+
+    def dashboard_initialize(self) -> None:
+        """
+        Configure the SmartDashboard for this subsystem
+        """
+        # SmartDashboard.putData("Field", self.field)
+        SmartDashboard.putString('Camera/name', self.name)
+        SmartDashboard.putString('Camera/type', "Limelight")
+
+    def dashboard_periodic(self) -> None:
+        """
+        Called from periodic function to update dashboard elements for this subsystem
+        """
+        divisor = 10 if self._robot.isEnabled() else 20
+        update_dash = self._robot.counter % divisor == 0
+
+        if update_dash:
+            SmartDashboard.putString('Camera/heartbeat', "Alive" if self.heartbeating else "Dead")
+            SmartDashboard.putNumber('Camera/last-heartbeat', self.lastHeartbeatTime)
