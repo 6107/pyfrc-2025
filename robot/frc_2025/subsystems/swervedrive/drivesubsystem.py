@@ -993,10 +993,16 @@ class DriveSubsystem(Subsystem):
         else:
             self.currentRotation = rot
 
+        # We scale our speed down during development
+        scaler = self._container.chosenLimiter.getSelected()
+        if not isinstance(scaler, (int, float)) or scaler < 0.0 or scaler > 1.0:
+            logger.info(f"Invalid drive rate limiter: '{scaler}")
+            scaler = 0.1
+
         # Convert the commanded speeds into the correct units for the drivetrain
-        self.xSpeedDelivered = xSpeedCommanded * DriveConstants.MAX_SPEED_METERS_PER_SECOND
-        self.ySpeedDelivered = ySpeedCommanded * DriveConstants.MAX_SPEED_METERS_PER_SECOND
-        self.rotDelivered = self.currentRotation * DriveConstants.MAX_ANGULAR_SPEED
+        self.xSpeedDelivered = xSpeedCommanded * DriveConstants.MAX_SPEED_METERS_PER_SECOND * scaler
+        self.ySpeedDelivered = ySpeedCommanded * DriveConstants.MAX_SPEED_METERS_PER_SECOND * scaler
+        self.rotDelivered = self.currentRotation * DriveConstants.MAX_ANGULAR_SPEED * scaler
 
         if fieldRelative:
             speeds = ChassisSpeeds.fromFieldRelativeSpeeds(self.xSpeedDelivered, self.ySpeedDelivered,
@@ -1007,6 +1013,7 @@ class DriveSubsystem(Subsystem):
         swerveModuleStates = DriveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(speeds)
 
         maxSpeed = DriveConstants.MAX_SPEED_METERS_PER_SECOND
+
         if self.maxSpeedScaleFactor is not None:
             maxSpeed = maxSpeed * self.maxSpeedScaleFactor()
 

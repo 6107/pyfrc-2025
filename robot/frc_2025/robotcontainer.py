@@ -172,6 +172,9 @@ class RobotContainer:
             else:
                 self.configureButtonBindings_Joystick(controller, is_driver)
 
+        # Speed limiter useful during initial development
+        self.configureSpeedLimiter()
+
         # Configure the autos
         self.configureAutos()
 
@@ -368,6 +371,21 @@ class RobotContainer:
         command = self.chosenAuto.getSelected()
         return command()
 
+    def configureSpeedLimiter(self):
+        """
+        Overall speed limitation scaling factor
+        """
+        self.chosenLimiter = SendableChooser()
+
+        # you can also set the default option, if needed
+        self.chosenLimiter.setDefaultOption("10%", 0.1)
+        self.chosenLimiter.addOption("20%", 0.2)
+        self.chosenLimiter.addOption("40%", 0.4)
+        self.chosenLimiter.addOption("60%", 0.6)
+        self.chosenLimiter.addOption("100%", 1.0)
+
+        SmartDashboard.putData("Drive rate limiter", self.chosenLimiter)
+
     def configureAutos(self):
         """
         Implement a dashboard "'"Chosen" dialog that allows us to select which 'automation'
@@ -379,7 +397,8 @@ class RobotContainer:
         #       mapped out to show our allies so we can maximize the chance of scoring more
         #       during the autonomous stage
         # you can also set the default option, if needed
-        self.chosenAuto.setDefaultOption("trajectory example", self.getAutonomousTrajectoryExample)
+        self.chosenAuto.setDefaultOption("Do nothing", self.getDoNothing)
+        self.chosenAuto.addOption("trajectory example", self.getAutonomousTrajectoryExample)
         self.chosenAuto.addOption("left blue", self.getAutonomousLeftBlue)
         self.chosenAuto.addOption("left red", self.getAutonomousLeftRed)
 
@@ -390,6 +409,14 @@ class RobotContainer:
             self.chosenAuto.addOption("Approach tag", self.getApproachTagCommand)
 
         SmartDashboard.putData("Chosen Auto", self.chosenAuto)
+
+    def getDoNothing(self) -> Command:
+        """
+        Have robot stop
+
+        Makes a good default autonomous default while robot is still under test
+        """
+        return InstantCommand(lambda: self.robot_drive.stop())
 
     def getAutonomousLeftBlue(self) -> Command:
         setStartPose = ResetXY(x=0.783, y=6.686, heading_degrees=+60, drivetrain=self.robot_drive)
