@@ -17,9 +17,9 @@
 # ------------------------------------------------------------------------ #
 
 import logging
+import sys
 from typing import Optional
 
-import sys
 import wpilib
 from commands2 import TimedCommandRobot, CommandScheduler
 from commands2.command import Command
@@ -29,6 +29,13 @@ from frc_2025 import constants
 from frc_2025.robotcontainer import RobotContainer
 # from util.telemetry import Telemetry
 from version import VERSION
+
+# # pykit & AdvantageScope support
+# from pykit.wpilog.wpilogwriter import WPILOGWriter
+# from pykit.wpilog.wpilogreader import WPILOGReader
+# from pykit.networktables.nt4Publisher import NT4Publisher
+# from pykit.loggedrobot import LoggedRobot
+# from pykit.logger import Logger
 
 # Setup Logging
 logger = logging.getLogger(__name__)

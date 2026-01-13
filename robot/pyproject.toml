@@ -14,7 +14,25 @@
 #                                                                          #
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
-#
+[project]
+name = "pyfrc-2026"
+version = "0.1.0"
+description = "Team 6107 FRC Robot Code"
+readme = "README.md"
+requires-python = "==3.14"
+dependencies = [
+    "wpilib>=2026.1.1",
+    "robotpy-pykit>=0.2.3",
+    "robotpy-pykit-watch>=0.2.0",
+    "robotpy-halsim-gui>=2026.1.1",
+    "robotpy>=2026.1.1",
+    "robotpy-cli>=2026.1.1",
+    "robotpy-pathplannerlib>=2026.1.1",
+    "phoenix6>=26.1.0",
+    "robotpy-navx>=2025.0.1.2",
+    "robotpy-rev>=2026.0.0",
+    "robotpy-commands-v2>=2026.1.1",
+]
 # Use this configuration file to control what RobotPy packages are installed
 # on your RoboRIO
 #
@@ -32,11 +50,10 @@ components = [
     # "cscore",
     "navx",
     "pathplannerlib",
-    # "phoenix5",
     "phoenix6",
     "rev",
     # "romi",
-    # "sim",
+    "sim",
     # "xrp",
 ]
 
@@ -44,7 +61,8 @@ components = [
 requires = [
     "pynetworktables",
     "photonlibpy",
-    "pyntcore"
+    "pyntcore",
+    "robotpy-pykit>=0.2.3"
 ]
 
 # List of paths to include
