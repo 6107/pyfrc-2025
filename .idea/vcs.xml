@@ -3,6 +3,5 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/robot/util/swervepy" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../pykit" vcs="Git" />
   </component>
 </project>

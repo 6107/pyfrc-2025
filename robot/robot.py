@@ -16,26 +16,35 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 
+import os
 import logging
 import sys
 from typing import Optional
 
 import wpilib
-from commands2 import TimedCommandRobot, CommandScheduler
+from commands2 import CommandScheduler
 from commands2.command import Command
 from wpilib import Timer, RobotBase, DriverStation, Field2d, SmartDashboard
 
 from frc_2025 import constants
+from frc_2025.constants import USE_PYKIT
+
 from frc_2025.robotcontainer import RobotContainer
+# from lib_6107.timedcommandloggedrobot import TimedCommandLoggedRobot
 # from util.telemetry import Telemetry
 from version import VERSION
 
-# # pykit & AdvantageScope support
-# from pykit.wpilog.wpilogwriter import WPILOGWriter
-# from pykit.wpilog.wpilogreader import WPILOGReader
-# from pykit.networktables.nt4Publisher import NT4Publisher
-# from pykit.loggedrobot import LoggedRobot
-# from pykit.logger import Logger
+if USE_PYKIT:
+    # pykit & AdvantageScope support
+    from pykit.wpilog.wpilogwriter import WPILOGWriter
+    from pykit.wpilog.wpilogreader import WPILOGReader
+    from pykit.networktables.nt4Publisher import NT4Publisher
+    from pykit.loggedrobot import LoggedRobot as MyRobotBase
+    from pykit.logger import Logger
+else:
+    from commands2 import TimedCommandRobot as MyRobotBase
+
+
 
 # Setup Logging
 logger = logging.getLogger(__name__)
@@ -46,7 +55,7 @@ each mode, as described in the TimedRobot documentation. If you change the name 
 the package after creating this project, you must also update the build.gradle file in the
 project.
 """
-class MyRobot(TimedCommandRobot):
+class MyRobot(MyRobotBase):
     """
     Our default robot class
 
@@ -57,7 +66,6 @@ class MyRobot(TimedCommandRobot):
         # Initialize our base class, choosing the default scheduler period
         super().__init__()
 
-        logger.debug("*** called MyRobot __init__")
         self._counter = 0  # Updated on each periodic call. Can be used to logging/smartdashboard updates
 
         self._container: Optional[RobotContainer] = None
@@ -87,20 +95,63 @@ class MyRobot(TimedCommandRobot):
         This function is run when the robot is first started up and should be used for any
         initialization code.
         """
-        if RobotBase.isSimulation():
-            logger.setLevel(logging.INFO)
+        # Set up logging
+        if USE_PYKIT:
+            Logger.recordMetadata("Robot", "Team6107-2026")
 
-            # If this is a simulation, we need to silence joystick warnings
-            logger.warning("Simulation detected. Silencing annoying JoyStick warnings")
-            DriverStation.silenceJoystickConnectionWarning(True)
+            match constants.kRobotMode:
+                case constants.RobotModes.REAL:
+                    # TODO: logger.setLevel(logging.ERROR)
+                    deploy_config = wpilib.deployinfo.getDeployData()
+                    if deploy_config is not None:
+                        Logger.recordMetadata("Deploy Host",
+                                              deploy_config.get("deploy-host", ""))
+                        Logger.recordMetadata("Deploy User",
+                                              deploy_config.get("deploy-user", ""))
+                        Logger.recordMetadata("Deploy Date",
+                                              deploy_config.get("deploy-date", ""))
+                        Logger.recordMetadata("Code Path",
+                                              deploy_config.get("code-path", ""))
+                        Logger.recordMetadata("Git Hash",
+                                              deploy_config.get("git-hash", ""))
+                        Logger.recordMetadata("Git Branch",
+                                              deploy_config.get("git-branch", ""))
+                        Logger.recordMetadata("Git Description",
+                                              deploy_config.get("git-desc", ""))
+                    Logger.addDataReciever(NT4Publisher(True))
+                    Logger.addDataReciever(WPILOGWriter())
+
+                case constants.RobotModes.SIMULATION:
+                    # TODO: logger.setLevel(logging.INFO)
+                    Logger.addDataReciever(NT4Publisher(True))
+                    DriverStation.silenceJoystickConnectionWarning(True)
+
+                case constants.RobotModes.REPLAY:
+                    self.useTiming = False  # run as fast as possible
+                    log_path = os.environ["LOG_PATH"]
+                    log_path = os.path.abspath(log_path)
+
+                    print(f"Starting log from {log_path}")
+
+                    Logger.setReplaySource(WPILOGReader(log_path))
+                    Logger.addDataReciever(WPILOGWriter(log_path[:-7] + "_sim.wpilog"))
+
+            Logger.start()
         else:
-            logger.setLevel(logging.ERROR)
+            if RobotBase.isSimulation():
+                logger.setLevel(logging.INFO)
 
-        logging.getLogger("wpilib").setLevel(logging.DEBUG)
-        logging.getLogger("commands2").setLevel(logging.DEBUG)
+                # If this is a simulation, we need to silence joystick warnings
+                logger.warning("Simulation detected. Silencing annoying JoyStick warnings")
+                DriverStation.silenceJoystickConnectionWarning(True)
+            else:
+                logger.setLevel(logging.ERROR)
 
-        version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        logger.info(f"Python: {version}, Software Version: {VERSION}")
+            logging.getLogger("wpilib").setLevel(logging.DEBUG)
+            logging.getLogger("commands2").setLevel(logging.DEBUG)
+
+            version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+            logger.info(f"Python: {version}, Software Version: {VERSION}")
 
         # Set up our playing field. May get overwritten if simulation is running or if we
         # support vision based odometry
