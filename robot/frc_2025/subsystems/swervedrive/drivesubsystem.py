@@ -19,7 +19,12 @@ import logging
 import math
 from typing import Callable, Tuple, Optional, List, Dict, Union, Any
 
-import navx
+try:
+    import navx
+    NAVX_SUPPORTED=True
+except ImportError:
+    NAVX_SUPPORTED=False
+
 import ntcore
 import robotpy_apriltag as apriltag
 from commands2 import Subsystem, TimedCommandRobot, InstantCommand
@@ -196,7 +201,7 @@ class DriveSubsystem(Subsystem):
         # The gyro sensor
         self._gyro: Optional[Union[Any, pigeon2.Pigeon2]] = None
 
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             self._gyro = navx.AHRS.create_spi()
             if self._gyro.isCalibrating():
                 # Flag that gyro is not calibrated. Checked in periodic call
@@ -288,7 +293,7 @@ class DriveSubsystem(Subsystem):
     @property
     def sim_yaw(self) -> degrees:
         # TODO: Copied from physics.py reconcile with any existing functions in this class
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             return self._sim_gyro.getDouble("Yaw").get()
 
         if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
@@ -299,7 +304,7 @@ class DriveSubsystem(Subsystem):
     @sim_yaw.setter
     def sim_yaw(self, value: degrees) -> None:
         # TODO: Copied from physics.py reconcile with any existing functions in this class
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             self._sim_gyro.getDouble("Yaw").set(value)
 
         elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
@@ -487,7 +492,7 @@ class DriveSubsystem(Subsystem):
 
             SmartDashboard.putNumber('keep_angle', self.keep_angle)
 
-            if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+            if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
                 SmartDashboard.putNumber('Gyro/yaw', self.get_yaw())
                 SmartDashboard.putNumber('Gyro/angle1', self.get_angle())
                 SmartDashboard.putNumber('Gyro/angle2', self.get_gyro_angle())
@@ -529,7 +534,7 @@ class DriveSubsystem(Subsystem):
         enabled = self._robot.isEnabled()
         log_it = self._robot.counter % 20 == 0 and enabled
 
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             if not self.gyro_calibrated and not self._gyro.isCalibrating():
                 # Gyro has finished calibrating, set it to zero
                 logger.info(f"DriveSubsystem:Periodic: Gyro was calibrated at count {self.counter}")
@@ -725,7 +730,7 @@ class DriveSubsystem(Subsystem):
         self._physics_controller = physics_controller
         self.kinematics: SwerveDrive4Kinematics = DriveConstants.DRIVE_KINEMATICS  # our swerve drive kinematics
 
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             # NavX (SPI interface)
             self._sim_gyro = simulation.SimDeviceSim("navX-Sensor[4]")
 
@@ -847,7 +852,7 @@ class DriveSubsystem(Subsystem):
 
     def zero_yaw(self):
 
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             self._gyro.zeroYaw()  # we boot up at zero degrees  - note - you can't reset this while calibrating
 
             if RobotBase.isSimulation():
@@ -1055,7 +1060,7 @@ class DriveSubsystem(Subsystem):
         """
         Returns the heading of the robot, tries to be smart when gyro is disconnected
         """
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             now = Timer.getFPGATimestamp()
             past = self._lastGyroAngleTime
             state = "ok"
@@ -1106,7 +1111,7 @@ class DriveSubsystem(Subsystem):
         """
         Returns the turn rate of the robot (in degrees per second)
         """
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             rate = self._gyro.getRate()
 
         elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
@@ -1273,7 +1278,7 @@ class DriveSubsystem(Subsystem):
         return [m.getState() for m in self.swerve_modules]
 
     def get_raw_angle(self) -> degrees:  # never reversed value for using PIDs on the heading
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             return self._gyro.getYaw()
 
         if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
@@ -1283,7 +1288,7 @@ class DriveSubsystem(Subsystem):
 
     def get_gyro_angle(self) -> degrees:
         # note this does add in the current offset
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             angle = self._gyro.getAngle()
             return -angle if DriveConstants.GYRO_REVERSED else angle
 
@@ -1299,7 +1304,7 @@ class DriveSubsystem(Subsystem):
         # but you should probably never use this - just use get_angle to be consistent
         # because yaw does NOT return the offset that get_Angle does
 
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             yaw = self._gyro.getYaw()
 
         elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
@@ -1313,7 +1318,7 @@ class DriveSubsystem(Subsystem):
     def get_pitch(self) -> degrees:  # need to calibrate the gyro?
         pitch_offset = 0  # TODO: Always zero?
 
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             return self._gyro.getPitch() - pitch_offset
 
         elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:
@@ -1325,7 +1330,7 @@ class DriveSubsystem(Subsystem):
     def get_roll(self) -> degrees:  # need to calibrate the gyro?
         roll_offset = 0  # TODO: Always zero?
 
-        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX:
+        if DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_NAVX and NAVX_SUPPORTED:
             return self._gyro.getRoll() - roll_offset
 
         elif DriveConstants.GYRO_TYPE == DriveConstants.GYRO_TYPE_PIGEON2:

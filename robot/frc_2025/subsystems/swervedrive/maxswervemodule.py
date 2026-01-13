@@ -29,7 +29,9 @@ from frc_2025.subsystems.swervedrive.constants import ModuleConstants, getSwerve
 
 
 class MAXSwerveModule:
-    def __init__(self, drivingCANId: int, turningCANId: int,
+    def __init__(self,
+                 drivingCANId: int,
+                 turningCANId: int,
                  chassisAngularOffset: float,
                  driveMotorInverted: bool = False,
                  turnMotorInverted: bool = True,
@@ -50,13 +52,19 @@ class MAXSwerveModule:
 
         # Factory reset, so we get the SPARKS MAX to a known state before configuring
         # them. This is useful in case a SPARK MAX is swapped out.
-        self.drivingSparkMax.configure(getSwerveDrivingMotorConfig(driveMotorInverted),
-                                       SparkBase.ResetMode.kResetSafeParameters,
-                                       SparkBase.PersistMode.kPersistParameters)
+        # TODO: 2026 Support needed:
+        # self.drivingSparkMax.configure(getSwerveDrivingMotorConfig(driveMotorInverted),
+        #                                SparkBase.ResetMode.kResetSafeParameters,
+        #                                SparkBase.PersistMode.kPersistParameters)
+        #
+        # self.turningSparkMax.configure(getSwerveTurningMotorConfig(turnMotorInverted),
+        #                                SparkBase.ResetMode.kResetSafeParameters,
+        #                                SparkBase.PersistMode.kPersistParameters)
 
-        self.turningSparkMax.configure(getSwerveTurningMotorConfig(turnMotorInverted),
-                                       SparkBase.ResetMode.kResetSafeParameters,
-                                       SparkBase.PersistMode.kPersistParameters)
+        # TODO: 2026 Support needed.  Even code below does not worl:
+        # self.drivingSparkMax.configure(getSwerveDrivingMotorConfig(driveMotorInverted))
+        #
+        # self.turningSparkMax.configure(getSwerveTurningMotorConfig(turnMotorInverted))
 
         # Setup encoders and PID controllers for the driving and turning SPARKS MAX.
         #

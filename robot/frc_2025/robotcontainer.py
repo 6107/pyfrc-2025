@@ -39,8 +39,14 @@ from lib_6107.commands.drivetrain.reset_xy import ResetXY
 from lib_6107.commands.drivetrain.trajectory import SwerveTrajectory, JerkyTrajectory
 from lib_6107.subsystems.limelight_camera import LimelightCamera
 from lib_6107.subsystems.limelight_localizer import LimelightLocalizer
-from lib_6107.subsystems.photon_localizer import PhotonLocalizer
-from lib_6107.subsystems.photonvision_camera import PhotonVisionCamera
+
+try:
+    from lib_6107.subsystems.photon_localizer import PhotonLocalizer, PHOTONLIB_SUPPORTED
+    from lib_6107.subsystems.photonvision_camera import PhotonVisionCamera
+    PHOTONLIB_SUPPORTED=True
+
+except ImportError:
+    PHOTONLIB_SUPPORTED = False
 
 # TODO: path planner stuff needed?
 
@@ -84,7 +90,7 @@ class RobotContainer:
         self.vision_odometry = False
         drive_kwargs: Dict[str, Any] = {}
 
-        if FRONT_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION:
+        if FRONT_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION and PHOTONLIB_SUPPORTED:
             self.front_camera = PhotonVisionCamera(self, name="front-camera")
 
         elif FRONT_CAMERA_TYPE == CAMERA_TYPE_LIMELIGHT:
@@ -93,7 +99,7 @@ class RobotContainer:
         else:
             self.front_camera = None
 
-        if REAR_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION:
+        if REAR_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION and PHOTONLIB_SUPPORTED:
             self.rear_camera = PhotonVisionCamera(self, name="rear-camera")
 
         elif REAR_CAMERA_TYPE == CAMERA_TYPE_LIMELIGHT:
@@ -132,7 +138,7 @@ class RobotContainer:
             drive_kwargs["Cameras"]["Front"]["Localizer"] = self.localizer
             camera_subsystems.append(self.localizer)
 
-        elif FRONT_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION:
+        elif FRONT_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION and PHOTONLIB_SUPPORTED:
             self.localizer = PhotonLocalizer(self, self.robot_drive, "2025-reefscape.json")
             drive_kwargs["Cameras"]["Front"]["Localizer"] = self.localizer
 

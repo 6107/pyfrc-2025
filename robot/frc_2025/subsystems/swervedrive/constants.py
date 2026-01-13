@@ -98,7 +98,7 @@ def getSwerveDrivingMotorConfig(driveMotorInverted: bool) -> SparkBaseConfig:
     drivingConfig.smartCurrentLimit(ModuleConstants.DRIVING_MOTOR_CURRENT_LIMIT)
     drivingConfig.encoder.positionConversionFactor(ModuleConstants.DRIVING_ENCODER_POSITION_FACTOR)
     drivingConfig.encoder.velocityConversionFactor(ModuleConstants.DRIVING_ENCODER_VELOCITY_FACTOR)
-    drivingConfig.closedLoop.setFeedbackSensor(ClosedLoopConfig.FeedbackSensor.kPrimaryEncoder)
+    # TODO: 2026 Support needed: drivingConfig.closedLoop.setFeedbackSensor(ClosedLoopConfig.FeedbackSensor.kPrimaryEncoder)
     drivingConfig.closedLoop.pid(ModuleConstants.DrivingP, ModuleConstants.DrivingI, ModuleConstants.DrivingD)
     drivingConfig.closedLoop.velocityFF(ModuleConstants.DrivingFF)
     drivingConfig.closedLoop.outputRange(ModuleConstants.DRIVING_MIN_OUTPUT, ModuleConstants.DRIVING_MAX_OUTPUT)
