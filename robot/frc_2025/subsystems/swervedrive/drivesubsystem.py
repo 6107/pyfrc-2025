@@ -961,8 +961,10 @@ class DriveSubsystem(Subsystem):
         pose = self._physics_controller.drive(speeds, tm_diff)
 
         # Limit it to the field size (manually)  TODO: Is there a programmatic way to do this?
-        x = min(17.5, max(0.0, pose.x))
-        y = min(8.0, max(0.0, pose.y))
+        # x = min(17.5, max(0.0, pose.x))       2025 - Reefscape
+        # y = min(8.0, max(0.0, pose.y))        2025 - Reefscape
+        x = min(16.45, max(0.175, pose.x))  # 2026 - Rebuilt
+        y = min(8.0, max(0.175, pose.y))  # 2026 - Rebuilt
         new_pose = Pose2d(x, y, pose.rotation())
 
         self.resetSimPose(new_pose, [SwerveModulePosition()] * 4,

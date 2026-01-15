@@ -15,7 +15,7 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 #
-#   2026 - Rebuilt
+#       2025 - Reefscape
 #
 import logging
 import math
@@ -52,7 +52,7 @@ RED_TEST_POSE = {
 # RED_PODIUM = field_flip_pose2d(BLUE_PODIUM)
 
 
-class RebuiltField:
+class ReefScapeField:
     """
     This class supports BLUE/RED alliances.
 
