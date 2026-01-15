@@ -37,6 +37,7 @@ from lib_6107.commands.drivetrain.aimtodirection import AimToDirection
 from lib_6107.commands.drivetrain.arcade_drive import ArcadeDrive
 from lib_6107.commands.drivetrain.reset_xy import ResetXY
 from lib_6107.commands.drivetrain.trajectory import SwerveTrajectory, JerkyTrajectory
+from lib_6107.constants import DEFAULT_ROBOT_FREQUENCY
 from lib_6107.subsystems.limelight_camera import LimelightCamera
 from lib_6107.subsystems.limelight_localizer import LimelightLocalizer
 
@@ -84,12 +85,16 @@ class RobotContainer:
         ########################################################
         # Subsystem initialization
         #
-        # Vision support
         camera_subsystems = []
         self.localizer = None
         self.vision_odometry = False
-        drive_kwargs: Dict[str, Any] = {}
+        period = robot.getPeriod() or DEFAULT_ROBOT_FREQUENCY
 
+        drive_kwargs: Dict[str, Any] = {
+            "pykit": {
+                "Update Frequency": 1.0 / period
+            }
+        }
         if FRONT_CAMERA_TYPE == CAMERA_TYPE_PHOTONVISION and PHOTONLIB_SUPPORTED:
             self.front_camera = PhotonVisionCamera(self, name="front-camera")
 

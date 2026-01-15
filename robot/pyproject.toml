@@ -62,7 +62,8 @@ requires = [
     "pynetworktables",
     "photonlibpy",
     "pyntcore",
-    "robotpy-pykit>=0.2.3"
+    "robotpy-pykit>=1.0.1",
+    "robotpy-pykit-watch>=1.0.0"
 ]
 
 # List of paths to include

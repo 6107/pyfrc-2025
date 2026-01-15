@@ -27,6 +27,8 @@ pyntcore                == 2026.1.1
 certifi                 == 2026.1.4
 pynetworktables         == 2021.1.1
 
+robotpy-pykit           == 1.0.1
+
 # ###############################################################################
 # # Following are for OpenTelemetry support. None of the files below
 # # are needed for competition. They are useful during development so

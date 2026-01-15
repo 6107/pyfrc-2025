@@ -82,7 +82,7 @@ class JerkyTrajectory(commands2.Command):
 
         self.addRequirements(self.drivetrain)
 
-    def reversed(self):
+    def is_reversed(self):
         waypoints = self.waypoints[1:]
         waypoints.reverse()
         endpoint = self.waypoints[0]
@@ -243,7 +243,7 @@ class JerkyTrajectory(commands2.Command):
 
 class SwerveTrajectory(JerkyTrajectory):
 
-    def reversed(self):
+    def is_reversed(self):
         waypoints = self.waypoints[1:]
         waypoints.reverse()
         endpoint = self.waypoints[0]

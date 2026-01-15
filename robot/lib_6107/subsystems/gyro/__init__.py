@@ -14,12 +14,3 @@
 #                                                                          #
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
-#
-#  Version file.  Format is   YEAR.MN.DA[.build] where the .build is
-#                 optional and should a period plus an incrementing number
-#                 starting at 1
-#
-#  This can be used to track code back to the original github commit. Remember
-#  to update it periodically as you make changes and check them in.
-#
-VERSION = "2026.01.15"

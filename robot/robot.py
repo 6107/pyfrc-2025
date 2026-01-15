@@ -16,8 +16,8 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 
-import os
 import logging
+import os
 import sys
 from typing import Optional
 
@@ -28,7 +28,6 @@ from wpilib import Timer, RobotBase, DriverStation, Field2d, SmartDashboard
 
 from frc_2025 import constants
 from frc_2025.constants import USE_PYKIT
-
 from frc_2025.robotcontainer import RobotContainer
 # from lib_6107.timedcommandloggedrobot import TimedCommandLoggedRobot
 # from util.telemetry import Telemetry
@@ -43,7 +42,6 @@ if USE_PYKIT:
     from pykit.logger import Logger
 else:
     from commands2 import TimedCommandRobot as MyRobotBase
-
 
 
 # Setup Logging

@@ -17,10 +17,9 @@
 #
 # Constants for source in this subdirectory will go here
 import os
-
 from enum import Enum
 
-from wpilib import  RobotBase
+from wpilib import RobotBase
 from wpimath import units
 
 USE_PYKIT = False
@@ -39,9 +38,6 @@ kSimMode = (
     else RobotModes.SIMULATION
 )
 kRobotMode = RobotModes.REAL if RobotBase.isReal() else kSimMode
-
-kRobotFrequency = 50
-kRobotPeriod = 1.0 / kRobotFrequency
 
 ###############################################################################
 # OPENTelemetry Support

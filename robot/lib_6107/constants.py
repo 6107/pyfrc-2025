@@ -15,11 +15,24 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 #
-#  Version file.  Format is   YEAR.MN.DA[.build] where the .build is
-#                 optional and should a period plus an incrementing number
-#                 starting at 1
-#
-#  This can be used to track code back to the original github commit. Remember
-#  to update it periodically as you make changes and check them in.
-#
-VERSION = "2026.01.15"
+# Commonly used constants not found in existing wpilib modules
+
+from math import pi
+
+# The period is available from robot.GetPeriod() and the following provides
+# a default value in case it returns 0 or None
+DEFAULT_ROBOT_FREQUENCY = 1.0 / 50
+
+######################################################################
+# Math
+RADIANS_PER_REVOLUTION = 2 * pi
+DEGREES_PER_REVOLUTION = 360.0
+RADIANS_PER_DEGREE = RADIANS_PER_REVOLUTION / DEGREES_PER_REVOLUTION
+
+INCHES_PER_FOOT = 12.0
+CENTIMETERS_PER_METER = 100.0
+CENTIMETERS_PER_INCH = 2.54
+METERS_PER_INCH = CENTIMETERS_PER_INCH / CENTIMETERS_PER_METER
+
+SECONDS_PER_MINUTE = 60.0
+MINUTES_PER_HOUR = 60.0
