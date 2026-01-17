@@ -151,7 +151,7 @@ release-check: distclean venv venv-test test bandit-test-all lint	## Clean distr
 ######################################################################
 ## Utility
 clean:		## Cleanup directory of build and test artifacts
-	@ -rm -rf .tox *.coverage *.egg-info ${DOCKER_TARBALLNAME}.gz build/*.deb test/.pytest_cache ${PYLAMA_OUT} ${PYLINT_OUT} ${LICENSE_OUT}
+	@ -rm -rf .tox *.coverage *.egg-info test/.pytest_cache ${PYLAMA_OUT} ${PYLINT_OUT} ${LICENSE_OUT}
 	@ -find . -name '*.pyc' | xargs rm -f
 	@ -find . -name '__pycache__' | xargs rm -rf
 	@ -find . -name 'htmlcov' | xargs rm -rf
@@ -159,12 +159,12 @@ clean:		## Cleanup directory of build and test artifacts
 	@ -find . -name 'coverage.xml' | xargs rm -rf
 	@ -find . -name '*.log' | xargs rm -rf
 	@ -find . -name '._.DS_Store' | xargs rm -rf
-	@ -find . -name 'simgui*.json' | xargs rm -rf
-	@ -find . -name 'networktables.json' | xargs rm -rf
 	@ -find . -name 'ctre_sim' | xargs rm -rf
 
 distclean: clean	## Cleanup all build, test, and virtual environment artifacts
 	@ -rm -rf ${VENVDIR} ${TESTVENVDIR}
+	@ -find . -name 'simgui*.json' | xargs rm -rf
+	@ -find . -name 'networktables.json' | xargs rm -rf
 
 help: ## Print help for each Makefile target
 	@echo ''

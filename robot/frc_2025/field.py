@@ -60,12 +60,6 @@ SIM_Y_OFFSET_METERS = 0.95
 # Add something with the AprilTags that are in this filed.  Call the drivetrain
 # SetDesiredAprilTags() function.
 
-json_file_path = '2026_field_layout.json'
-
-import robotpy_apriltag
-
-robotpy_apriltag.AprilTagFieldLayout.loadField()
-
 class RebuiltField:
     """
     This class supports BLUE/RED alliances.
