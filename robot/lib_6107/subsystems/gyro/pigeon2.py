@@ -93,18 +93,11 @@ class Pigeon2(Gyro):
         """
         return False
 
-    def reset(self, adjustment=None) -> None:
+    def reset(self) -> None:
         """
         Reset the gyro
         """
         self.zero_yaw()
-
-        # if adjustment is not None:
-        #     # ADD adjustment - e.g trying to update the gyro from a pose
-        #     self._gyro.setAngleAdjustment(adjustment)
-        # else:
-        #     # make sure there is no adjustment
-        #     self._gyro.setAngleAdjustment(0)
 
     def zero_yaw(self) -> None:
         self._gyro.set_yaw(0.0)  # we boot up at zero degrees  - note - you can't reset this while calibrating
@@ -144,15 +137,6 @@ class Pigeon2(Gyro):
     @property
     def angle(self) -> degrees:
         return self.yaw
-
-    @property
-    def heading(self) -> Rotation2d:
-        """
-        Returns the heading of the robot
-        """
-        last_angle = self.yaw
-
-        return Rotation2d.fromDegrees(last_angle)
 
     @property
     def turn_rate(self) -> float:

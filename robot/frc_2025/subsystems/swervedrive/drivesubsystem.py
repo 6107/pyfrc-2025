@@ -20,21 +20,19 @@ import math
 import os
 from typing import Callable, Tuple, Optional, List, Dict, Union, Any, Generator
 
-try:
-    import navx
-    NAVX_SUPPORTED=True
-except ImportError:
-    NAVX_SUPPORTED=False
-
 import ntcore
 import robotpy_apriltag as apriltag
 from commands2 import Command, Subsystem, TimedCommandRobot, InstantCommand, cmd
+from commands2.sysid import SysIdRoutine
 from pathplannerlib.auto import AutoBuilder
+from pathplannerlib.commands import DriveFeedforwards, PPLTVController, PathPlannerLogging
 from pathplannerlib.config import RobotConfig
+from pykit.autolog import autolog_output, autologgable_output
+from pykit.logger import Logger
+from pykit.networktables.loggeddashboardchooser import LoggedDashboardChooser
 from rev import SparkMax
 from wpilib import SmartDashboard, Field2d, RobotBase, Timer, DriverStation, simulation, \
     getDeployDirectory
-from wpimath.controller import PIDController
 from wpimath.estimator import SwerveDrive4PoseEstimator
 from wpimath.filter import SlewRateLimiter
 from wpimath.geometry import Transform2d, Transform3d, Translation3d, Rotation3d, \
@@ -43,27 +41,24 @@ from wpimath.kinematics import ChassisSpeeds, SwerveModuleState, SwerveDrive4Kin
     SwerveDrive4Odometry, SwerveModulePosition
 from wpimath.units import degrees, inchesToMeters
 
-from commands2.sysid import SysIdRoutine
-# from pathplannerlib.auto import AutoBuilder
-# from pathplannerlib.commands import DriveFeedforwards, PPLTVController, PathPlannerLogging
-
 from frc_2025.constants import USE_PYKIT
-
-from frc_2025.field import RED_TEST_POSE, BLUE_TEST_POSE
+from frc_2025.field import RED_TEST_POSE, BLUE_TEST_POSE, FIELD_Y_SIZE, FIELD_X_SIZE
 from frc_2025.subsystems import constants
 from frc_2025.subsystems.constants import DeviceID
 from frc_2025.subsystems.swervedrive import swerveutils
 from frc_2025.subsystems.swervedrive.constants import DriveConstants
 from frc_2025.subsystems.swervedrive.maxswervemodule import MAXSwerveModule
-
-from lib_6107.subsystems.pykit.swervedrive_io import SwerveDriveIO
 from lib_6107.subsystems.gyro.gyro import Gyro, GyroIO
-from lib_6107.subsystems.gyro.pigeon2 import Pigeon2
 from lib_6107.subsystems.gyro.navx import NavX
+from lib_6107.subsystems.gyro.pigeon2 import Pigeon2
+from lib_6107.subsystems.pykit.swervedrive_io import SwerveDriveIO
 
-from pykit.autolog import autolog_output, autologgable_output
-from pykit.logger import Logger
-from pykit.networktables.loggeddashboardchooser import LoggedDashboardChooser
+try:
+    import navx
+
+    NAVX_SUPPORTED = True
+except ImportError:
+    NAVX_SUPPORTED = False
 
 # TODO: This value needs to be tested. Perform the following on a real robot
 #
@@ -192,13 +187,11 @@ class DriveSubsystem(Subsystem):
         # TODO: Make sure and tie this into the SmartDashboard chooser
         # TODO: Make sure and tie this into the SmartDashboard chooser
         # TODO: Make sure and tie this into the SmartDashboard chooser
-        self.maxSpeedScaleFactor: Optional[Callable[[None], float]] = maxSpeedScaleFactor
+        self.maxSpeedScaleFactor: Optional[Callable[[], float]] = maxSpeedScaleFactor
 
         self.gyroOvershootFraction = 0.0
         if not TimedCommandRobot.isSimulation():
             self.gyroOvershootFraction = GYRO_OVERSHOOT_FRACTION
-
-        # enabledChassisAngularOffset = 0 if DriveConstants.ASSUME_ZERO_OFFSET else 1
 
         # Create MAXSwerveModules
         self.frontLeft = MAXSwerveModule(
@@ -209,8 +202,7 @@ class DriveSubsystem(Subsystem):
             turnMotorInverted=DriveConstants.FRONT_LEFT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
             encoder_analog_port=DeviceID.DRIVETRAIN_LEFT_FRONT_ENCODER_ID,
-            label="lf"
-        )
+            label="lf")
 
         self.frontRight = MAXSwerveModule(
             DeviceID.DRIVETRAIN_RIGHT_FRONT_DRIVING_ID,
@@ -220,8 +212,7 @@ class DriveSubsystem(Subsystem):
             turnMotorInverted=DriveConstants.FRONT_RIGHT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
             encoder_analog_port=DeviceID.DRIVETRAIN_RIGHT_FRONT_ENCODER_ID,
-            label="rf"
-        )
+            label="rf")
 
         self.rearLeft = MAXSwerveModule(
             DeviceID.DRIVETRAIN_LEFT_REAR_DRIVING_ID,
@@ -231,8 +222,7 @@ class DriveSubsystem(Subsystem):
             turnMotorInverted=DriveConstants.REAR_LEFT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
             encoder_analog_port=DeviceID.DRIVETRAIN_LEFT_REAR_ENCODER_ID,
-            label="lb"
-        )
+            label="lb")
 
         self.rearRight = MAXSwerveModule(
             DeviceID.DRIVETRAIN_RIGHT_REAR_DRIVING_ID,
@@ -242,18 +232,11 @@ class DriveSubsystem(Subsystem):
             turnMotorInverted=DriveConstants.REAR_RIGHT_TURNING_MOTOR_INVERTED,
             motorControllerType=SparkMax,
             encoder_analog_port=DeviceID.DRIVETRAIN_RIGHT_REAR_ENCODER_ID,
-            label="rb"
-        )
+            label="rb")
+
         self.swerve_modules: List[MAXSwerveModule] = [self.frontLeft, self.frontRight, self.rearLeft, self.rearRight]
 
-        # TODO: Currently only the Phoenix6 Pigeon2 is supported.  Some work had been done with the NavX
-        #       encoder, but it was not completed or tested outside of simulations/physics.  In this
-        #       initial implementation, I am using the 2025 Java YAGSL code with what the CyberJagzz
-        #       robot Java based code used.
-        #
-        # TODO: In the future, look at what the YAGSL 'SwerveIMU' class provides and create one of our
-        #       own to track it.
-        # The gyro sensor
+        # The gyro/IMU sensor
 
         self._gyro: Optional[Gyro] = None
 
@@ -267,40 +250,18 @@ class DriveSubsystem(Subsystem):
 
         self._gyro.initialize()
         self._gyroInputs = GyroIO.GyroIOInputs()
-        # TODO: Go though and scrub any gyro stuff  or move it to the proper gyro class
-        self._rawGyroRotation = Rotation2d()
 
-        # timer and variables for checking if we should be using pid on rotation
-        self.keep_angle = 0.0  # the heading we try to maintain when not rotating
-        self.keep_angle_timer = Timer()
-        self.keep_angle_timer.start()
-        self.keep_angle_timer.reset()
-        self.keep_angle_pid = PIDController(0.015, 0, 0)  # TODO: put these in constants.  allow 1% stick per degree
-        self.keep_angle_pid.enableContinuousInput(-180, 180)  # using the gyro's yaw is b/w -180 and 180
-        self.last_rotation_time = 0
-        self.time_since_rotation = 0
-        self.last_drive_time = 0
-        self.time_since_drive = 0
-
-        self.fwd_magLimiter = SlewRateLimiter(0.9 * DriveConstants.MAGNITUDE_SLEW_RATE)
-        self.strafe_magLimiter = SlewRateLimiter(DriveConstants.MAGNITUDE_SLEW_RATE)
+        # TODO: Support slew rate and make adjustable. There is a parameter to 'drive()'
+        #       called rate limit that currently uses the rotation & magnitude limiter
+        # Slew rate filter variables and limiters for controlling lateral acceleration
+        self.magLimiter = SlewRateLimiter(DriveConstants.MAGNITUDE_SLEW_RATE)
         self.rotLimiter = SlewRateLimiter(DriveConstants.ROTATIONAL_SLEW_RATE)
 
-        # # TODO: original gyro attributes below from the Java 2025 code.
-        # self._lastGyroAngleTime = 0
-        # self._lastGyroAngle = 0
-        # self._lastGyroAngleAdjustment = 0
-        # self._lastGyroState = "ok"
-
-        # Slew rate filter variables for controlling lateral acceleration
         self.currentTranslationDir = 0.0
         self.currentTranslationMag = 0.0
         self.xSpeedDelivered = 0.0
         self.ySpeedDelivered = 0.0
         self.rotDelivered = 0.0
-
-        self.magLimiter = SlewRateLimiter(DriveConstants.MAGNITUDE_SLEW_RATE)
-        self.rotLimiter = SlewRateLimiter(DriveConstants.ROTATIONAL_SLEW_RATE)
         self.prevTime = Timer.getFPGATimestamp()
 
         # Pykit support
@@ -308,7 +269,7 @@ class DriveSubsystem(Subsystem):
 
         # The next attributes are set depending on if vision is unsupported for tracking the robot pose
         self.odometry = None
-        self.inst = None
+        self._network_table_inst = None
 
         if not self.vision_odometry or RobotBase.isSimulation():
             # The robots movements are commanded based on the fixed coordinate system of the competition field
@@ -350,22 +311,31 @@ class DriveSubsystem(Subsystem):
         #         changes, can we update our  'pose_estimator above' and the settings below?
         #
         #   TODO: Is alliance settings in a match already in driverstation before we start and all this only matters during simulation?
-        #
-        # AutoBuilder.configure(self.getPose,
-        #                       self.setPose,
-        #                       self.getChassisSpeeds,
-        #                       self.runClosedLoop,
-        #                       PPLTVController(constants.kRobotPeriod,
-        #                                       driveconstants.kMaxSpeedMetersPerSecond),
-        #                       driveconstants.kPPConfig,
-        #                       (lambda: DriverStation.getAlliance() == DriverStation.Alliance.kRed),
-        #                       self)
-        #
-        # PathPlannerLogging.setLogActivePathCallback(lambda activePath: Logger.recordOutput("Odometry/Trajectory",
-        #                                                                                    activePath))
-        # PathPlannerLogging.setLogTargetPoseCallback(lambda targetPose: Logger.recordOutput("Odometry/TrajectorySetpoint",
-        #                                                                                    targetPose))
-        #
+
+        robot_config = RobotConfig.fromGUISettings()
+
+        # TODO: What do we need here with pathplanner and assuming pykit is also supported. Also if
+        #       we want the PPLTV Controller, should we use the AutoConstants or DriveConstants.
+        # controller = apriltag.k_pathplanner_holonomic_controller
+        controller = PPLTVController(1 / kwargs["pykit"]["Update Frequency"],
+                                     DriveConstants.MAX_SPEED_METERS_PER_SECOND)
+
+        # TODO: Validate what get_relative_speeds is suppose to return in the actual call.
+        #       it looks like it is suppose to be 4 values and not a list of 4 values (ModuleStates)
+        AutoBuilder.configure(self.get_pose,
+                              self.resetOdometry,
+                              self.get_relative_speeds,
+                              self.drive_robot_relative,
+                              controller,
+                              robot_config,
+                              lambda: DriverStation.getAlliance() == DriverStation.Alliance.kRed,
+                              self)
+
+        PathPlannerLogging.setLogActivePathCallback(lambda path: Logger.recordOutput("Odometry/Trajectory",
+                                                                                     path))
+        PathPlannerLogging.setLogTargetPoseCallback(lambda pose: Logger.recordOutput("Odometry/TrajectorySetpoint",
+                                                                                     pose))
+        # TODO: More SysId below
         # self.sysid = SysIdRoutine(SysIdRoutine.Config(1, 7, 10,
         #                                               lambda state: Logger.recordOutput("Drive/SysIdState",
         #                                                                                 sysIdStateToStr(state)),),
@@ -373,25 +343,7 @@ class DriveSubsystem(Subsystem):
         #                                                  (lambda: None), self))
 
         # Register for any changes in alliance before the match starts
-        #
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #  TODO:  SUPPORT AN ALLIANCE CHANGE CALLBACK IN OUR ROBOT !!!
-        #
-        #
         container.register_alliance_change_callback(self._alliance_change)
-
 
     @property
     def counter(self) -> int:
@@ -434,15 +386,6 @@ class DriveSubsystem(Subsystem):
         def sysIdDynamic(self, direction: SysIdRoutine.Direction):
             return self.sysid.dynamic(direction)
 
-    @property
-    def sim_yaw(self) -> degrees:
-        # TODO: Copied from physics.py reconcile with any existing functions in this class
-        return self._gyro.sim_yaw
-
-    @sim_yaw.setter
-    def sim_yaw(self, value: degrees) -> None:
-        self._gyro.sim_yaw = value
-
     def _init_vision_odometry_photoncam(self):
         # TODO: Below is code from team 2429 where they use vision to estimate position.
         # TODO: May be better derive a new class for this
@@ -451,15 +394,16 @@ class DriveSubsystem(Subsystem):
                              constants.START_Y,
                              Rotation2d.fromDegrees(self._gyro.angle))
         # get poses from NT
-        self.inst = ntcore.NetworkTableInstance.getDefault()
+        self._network_table_inst = ntcore.NetworkTableInstance.getDefault()
 
         self.pi_subscriber_dicts: List[Dict[str, Union[ntcore.DoubleArraySubscriber, ntcore.DoubleSubscriber]]] = []
         for pi_name in constants.VisionConstants.k_pi_names:
             this_pi_subscriber_dict = {}
-            this_pi_subscriber_dict.update({"robot_pose_info_subscriber": self.inst.getDoubleArrayTopic(
+            this_pi_subscriber_dict.update({"robot_pose_info_subscriber": self._network_table_inst.getDoubleArrayTopic(
                 f"vision/{pi_name}/robot_pose_info").subscribe([])})
             this_pi_subscriber_dict.update(
-                {"wpinow_time_subscriber": self.inst.getDoubleTopic(f"vision/{pi_name}/wpinow_time").subscribe(0)})
+                {"wpinow_time_subscriber": self._network_table_inst.getDoubleTopic(
+                    f"vision/{pi_name}/wpinow_time").subscribe(0)})
             self.pi_subscriber_dicts.append(this_pi_subscriber_dict)
 
         # photonvision camera setup
@@ -473,9 +417,9 @@ class DriveSubsystem(Subsystem):
             self.photon_name = "Geniuscam"
 
             self.photoncam_arducam_a = PhotonCamera(self.photon_name)
-            self.photoncam_target_subscriber = self.inst.getBooleanTopic(
+            self.photoncam_target_subscriber = self._network_table_inst.getBooleanTopic(
                 f'/photonvision/{self.photon_name}/hasTarget').subscribe(False)
-            self.photoncam_latency_subscriber = self.inst.getDoubleTopic(
+            self.photoncam_latency_subscriber = self._network_table_inst.getDoubleTopic(
                 f'/photonvision/{self.photon_name}/LatencyMillis').subscribe(0)
 
             # example is cam mounted facing forward, half a meter forward of center, half a meter up from center
@@ -509,25 +453,27 @@ class DriveSubsystem(Subsystem):
             # get poses from NT
             self.use_CJH_apriltags = constants.USE_CJH_TAGS  # down below we decide which one to use in the periodic method
             # lhack turned off 15:48 2/28/25 to test pathplanner wo tags first
-            self.inst = ntcore.NetworkTableInstance.getDefault()
+            self._network_table_inst = ntcore.NetworkTableInstance.getDefault()
             # TODO - make this a loop with just the names
-            self.arducam_back_pose_subscriber = self.inst.getDoubleArrayTopic(
+            self.arducam_back_pose_subscriber = self._network_table_inst.getDoubleArrayTopic(
                 "/Cameras/ArducamBack/poses/tag1").subscribe([0] * 8)
-            self.arducam_back_count_subscriber = self.inst.getDoubleTopic(
+            self.arducam_back_count_subscriber = self._network_table_inst.getDoubleTopic(
                 "/Cameras/ArducamBack/tags/targets").subscribe(0)
 
-            self.arducam_high_pose_subscriber = self.inst.getDoubleArrayTopic(
+            self.arducam_high_pose_subscriber = self._network_table_inst.getDoubleArrayTopic(
                 "/Cameras/ArducamHigh/poses/tag1").subscribe([0] * 8)
-            self.arducam_high_count_subscriber = self.inst.getDoubleTopic(
+            self.arducam_high_count_subscriber = self._network_table_inst.getDoubleTopic(
                 "/Cameras/ArducamHigh/tags/targets").subscribe(0)
 
-            self.genius_low_pose_subscriber = self.inst.getDoubleArrayTopic("/Cameras/GeniusLow/poses/tag1").subscribe(
+            self.genius_low_pose_subscriber = self._network_table_inst.getDoubleArrayTopic(
+                "/Cameras/GeniusLow/poses/tag1").subscribe(
                 [0] * 8)
-            self.genius_low_count_subscriber = self.inst.getDoubleTopic("/Cameras/GeniusLow/tags/targets").subscribe(0)
+            self.genius_low_count_subscriber = self._network_table_inst.getDoubleTopic(
+                "/Cameras/GeniusLow/tags/targets").subscribe(0)
 
-            self.logitech_reef_pose_subscriber = self.inst.getDoubleArrayTopic(
+            self.logitech_reef_pose_subscriber = self._network_table_inst.getDoubleArrayTopic(
                 "/Cameras/LogitechReef/poses/tag1").subscribe([0] * 8)
-            self.logitech_reef_count_subscriber = self.inst.getDoubleTopic(
+            self.logitech_reef_count_subscriber = self._network_table_inst.getDoubleTopic(
                 "/Cameras/LogitechReef/tags/targets").subscribe(0)
 
             # set myself up for a zip later on
@@ -536,28 +482,16 @@ class DriveSubsystem(Subsystem):
             self.count_subscribers = [self.arducam_back_count_subscriber, self.arducam_high_count_subscriber,
                                       self.genius_low_count_subscriber, self.logitech_reef_count_subscriber]
 
-            self.desired_tags = constants.VisionConstants.k_valid_tags
+            try:
+                self._desired_april_tags = constants.VisionConstants.k_valid_tags
+            except Exception:
+                self._desired_april_tags = None  # TODO: Constants not yet defined
 
             # TODO - give me a list of six filters for the apriltags - smooth if we are not moving, else use reset each measurement
             # def tag_filter(window):
             #     return [wpimath.filter.LinearFilter.movingAverage(window) for _ in range(6) ]
             # window = 5
             # self.tag_motion_filters = [tag_filter(window) for _ in self.pose_subscribers]
-
-            robot_config = RobotConfig.fromGUISettings()
-
-            # TODO: Validate what get_relative_speeds is suppose to return in the actual call.
-            #       it looks like it is suppose to be 4 values and not a list of 4 values (ModuleStates)
-            AutoBuilder.configure(
-                pose_supplier=self.get_pose,
-                reset_pose=self.resetOdometry,
-                robot_relative_speeds_supplier=self.get_relative_speeds,
-                output=self.drive_robot_relative,
-                controller=apriltag.k_pathplanner_holonomic_controller,
-                robot_config=robot_config,
-                should_flip_path=self.flip_path,
-                drive_subsystem=self
-            )
 
             self.automated_path = None
 
@@ -627,8 +561,6 @@ class DriveSubsystem(Subsystem):
             SmartDashboard.putNumber("Drivetrain/y", pose.y)
             SmartDashboard.putNumber("Drivetrain/heading", pose.rotation().degrees())
 
-            SmartDashboard.putNumber('keep_angle', self.keep_angle)
-
             self._gyro.dashboard_periodic()
 
     def configure_button_bindings(self, driver, shooter) -> None:
@@ -654,7 +586,7 @@ class DriveSubsystem(Subsystem):
             #
             # button = self.driverController.button(XboxController.Button.kB)
             # button.whileTrue(RunCommand(turn_to_object, self))
-            # button.onFalse(InstantCommand(lambda: self.drive(0, 0, 0, False, False)
+            # button.onFalse(InstantCommand(lambda: self.drive(0, 0, 0)
             pass
 
         pass  # TODO: Add me
@@ -835,17 +767,6 @@ class DriveSubsystem(Subsystem):
                 SmartDashboard.putNumber('drive_y', pose.Y())
                 SmartDashboard.putNumber('drive_theta', pose.rotation().degrees())
 
-            # SmartDashboard.putNumber('_gyro', self.get_angle())   # TODO: Support
-            # SmartDashboard.putNumber('_gyro_yaw', self.get_yaw())
-            # SmartDashboard.putNumber('_gyro_angle', self._gyro.angle)
-
-            SmartDashboard.putNumber('keep_angle', self.keep_angle)
-            # SmartDashboard.putNumber('keep_angle_output', output)
-
-            # post yaw, pitch, roll so we can see what is going on with the climb
-            # ypr = [self._gyro.getYaw(), self.get_pitch(), self._gyro.getRoll(), self._gyro.getRotation2d().degrees()]
-            # SmartDashboard.putNumberArray('_gyro_YPR', ypr)
-
             # monitor power as well
             if True:  # RobotBase.isReal():
                 # there's some kind of voltage simulation but idk if this covers it
@@ -960,16 +881,17 @@ class DriveSubsystem(Subsystem):
         # update the sim's robot. Returned value is same as what is returned from self._physics_controller.get_pose()
         pose = self._physics_controller.drive(speeds, tm_diff)
 
-        # Limit it to the field size (manually)  TODO: Is there a programmatic way to do this?
-        # x = min(17.5, max(0.0, pose.x))       2025 - Reefscape
-        # y = min(8.0, max(0.0, pose.y))        2025 - Reefscape
-        x = min(16.45, max(0.175, pose.x))  # 2026 - Rebuilt
-        y = min(8.0, max(0.175, pose.y))  # 2026 - Rebuilt
+        # Limit it to the field size (manually)
+        robot_x_offset = kwargs.get("robot_x_offset", .4)
+        robot_y_offset = kwargs.get("robot_y_offset", .4)
+        x = min(FIELD_X_SIZE - robot_x_offset, max(robot_x_offset, pose.x))
+        y = min(FIELD_Y_SIZE - robot_y_offset, max(robot_y_offset, pose.y))
+
         new_pose = Pose2d(x, y, pose.rotation())
 
         self.resetSimPose(new_pose, [SwerveModulePosition()] * 4,
                           self._physics_controller.get_pose().rotation())
-        previous = self.sim_yaw
+        previous = self.gyro.sim_yaw
         omega = speeds.omega
         gyro_degrees = math.degrees(speeds.omega * tm_diff)
         new = previous - math.degrees(speeds.omega * tm_diff)
@@ -977,7 +899,7 @@ class DriveSubsystem(Subsystem):
         if log_it:
             logger.debug(f"Update swerve: previous: {previous}, new: {new}, omega: {omega}, degrees: {gyro_degrees}")
 
-        self._gyro.sim_yaw = pose.rotation().degrees()
+        self.gyro.sim_yaw = pose.rotation().degrees()
 
         return amperes_used
 
@@ -1068,8 +990,8 @@ class DriveSubsystem(Subsystem):
         else:
             self.arcadeDrive(0, 0)
 
-    def arcadeDrive(self, xSpeed: float, rot: float, assumeManualInput: bool = False) -> None:
-        self.drive(xSpeed, 0, rot, False, False, square=assumeManualInput)
+    def arcadeDrive(self, x_speed: float, rot: float, assumeManualInput: bool = False) -> None:
+        self.drive(x_speed, 0, rot, square=assumeManualInput)
 
     def rotate(self, rotSpeed) -> None:
         """
@@ -1078,31 +1000,32 @@ class DriveSubsystem(Subsystem):
         """
         self.arcadeDrive(0, rotSpeed)
 
-    def drive(self, xSpeed: float, ySpeed: float, rot: float, fieldRelative: bool,
-              rateLimit: bool, square: bool = False) -> None:
+    def drive(self, x_speed: float, y_speed: float, rotation: float, fieldRelative: Optional[bool] = False,
+              rateLimit: Optional[bool] = False, square: Optional[bool] = False) -> None:
+
         """Method to drive the robot using joystick info.
 
-        :param xSpeed:        Speed of the robot in the x direction (forward).
-        :param ySpeed:        Speed of the robot in the y direction (sideways).
-        :param rot:           Angular rate of the robot.
-        :param fieldRelative: Whether the provided x and y speeds are relative to the
-                              field.
+        :param x_speed:       Speed of the robot in the x direction (forward).
+        :param y_speed:       Speed of the robot in the y direction (sideways).
+        :param rotation:      Angular rate of the robot.
+        :param fieldRelative: Whether the provided x and y speeds are relative to the field.
         :param rateLimit:     Whether to enable rate limiting for smoother control.
         :param square:        Whether to square the inputs (useful for manual control)
         """
         if square:
-            rot = rot * abs(rot)
-            norm = math.sqrt(xSpeed * xSpeed + ySpeed * ySpeed)
-            xSpeed = xSpeed * norm
-            ySpeed = ySpeed * norm
+            rotation = rotation * abs(rotation)
+            norm = math.sqrt(x_speed * x_speed + y_speed * y_speed)
+            x_speed = x_speed * norm
+            y_speed = y_speed * norm
 
-        xSpeedCommanded = xSpeed
-        ySpeedCommanded = ySpeed
+        xSpeedCommanded = x_speed
+        ySpeedCommanded = y_speed
 
         if rateLimit:
+            # TODO: Currently, this is not being used.   Probably want before too long
             # Convert XY to polar for rate limiting
-            inputTranslationDir = math.atan2(ySpeed, xSpeed)
-            inputTranslationMag = math.hypot(xSpeed, ySpeed)
+            inputTranslationDir = math.atan2(y_speed, x_speed)
+            inputTranslationMag = math.hypot(x_speed, y_speed)
 
             # Calculate the direction slew rate based on an estimate of the lateral acceleration
             if self.currentTranslationMag != 0.0:
@@ -1144,10 +1067,10 @@ class DriveSubsystem(Subsystem):
 
             xSpeedCommanded = self.currentTranslationMag * math.cos(self.currentTranslationDir)
             ySpeedCommanded = self.currentTranslationMag * math.sin(self.currentTranslationDir)
-            self.currentRotation = self.rotLimiter.calculate(rot)
+            self.currentRotation = self.rotLimiter.calculate(rotation)
 
         else:
-            self.currentRotation = rot
+            self.currentRotation = rotation
 
         # We scale our speed down during development
         scaler = self._container.chosenLimiter.getSelected()
@@ -1168,136 +1091,23 @@ class DriveSubsystem(Subsystem):
 
         swerveModuleStates = DriveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(speeds)
 
-        maxSpeed = DriveConstants.MAX_SPEED_METERS_PER_SECOND
+        max_speed = DriveConstants.MAX_SPEED_METERS_PER_SECOND
 
         if self.maxSpeedScaleFactor is not None:
-            maxSpeed = maxSpeed * self.maxSpeedScaleFactor()
+            max_speed = max_speed * self.maxSpeedScaleFactor()
 
-        fl, fr, rl, rr = SwerveDrive4Kinematics.desaturateWheelSpeeds(swerveModuleStates, maxSpeed)
+        fl, fr, rl, rr = SwerveDrive4Kinematics.desaturateWheelSpeeds(swerveModuleStates, max_speed)
         self.frontLeft.setDesiredState(fl)
         self.frontRight.setDesiredState(fr)
         self.rearLeft.setDesiredState(rl)
         self.rearRight.setDesiredState(rr)
 
-    def setX(self) -> None:
+    def set_x_formation(self) -> None:
         """Sets the wheels into an X formation to prevent movement."""
         self.frontLeft.setDesiredState(SwerveModuleState(0, Rotation2d.fromDegrees(45)))
         self.frontRight.setDesiredState(SwerveModuleState(0, Rotation2d.fromDegrees(-45)))
         self.rearLeft.setDesiredState(SwerveModuleState(0, Rotation2d.fromDegrees(-45)))
         self.rearRight.setDesiredState(SwerveModuleState(0, Rotation2d.fromDegrees(45)))
-
-    def setModuleStates(self, desiredStates: SwerveModuleStats) -> None:
-        """Sets the swerve ModuleStates.
-
-        :param desiredStates: The desired SwerveModule states.
-        """
-        maxSpeed = DriveConstants.MAX_SPEED_METERS_PER_SECOND
-        if self.maxSpeedScaleFactor is not None:
-            maxSpeed = maxSpeed * self.maxSpeedScaleFactor()
-        fl, fr, rl, rr = SwerveDrive4Kinematics.desaturateWheelSpeeds(desiredStates, maxSpeed)
-        self.frontLeft.setDesiredState(fl)
-        self.frontRight.setDesiredState(fr)
-        self.rearLeft.setDesiredState(rl)
-        self.rearRight.setDesiredState(rr)
-
-    def resetEncoders(self) -> None:
-        """Resets the drive encoders to currently read a position of 0."""
-        self.frontLeft.resetEncoders()
-        self.rearLeft.resetEncoders()
-        self.frontRight.resetEncoders()
-        self.rearRight.resetEncoders()
-
-    ##########################################################
-    # TODO: All the following are related to team 2429 and pathplanner. These have not been tested and
-    #       we may need to refactor the 'drive()' method above
-
-    #  -------------  THINGS PATHPLANNER NEEDS  - added for pathplanner 20230218 CJH
-    def get_relative_speeds(self) -> ChassisSpeeds:
-        # added for pathplanner 20230218 CJH
-        return DriveConstants.DRIVE_KINEMATICS.toChassisSpeeds(self.get_module_states())
-
-    def drive_robot_relative(self, chassis_speeds: ChassisSpeeds, feedforwards):
-        """
-        feedforwards isn't used at all so pass it whatever
-        """
-        # required for the pathplanner lib's path following based on chassis speeds
-        # idk if we need the feedforwards
-        swerveModuleStates = DriveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(chassis_speeds)
-        swerveModuleStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(swerveModuleStates,
-                                                                          DriveConstants.MAX_TOTAL_SPEED)
-        for state, module in zip(swerveModuleStates, self.swerve_modules):
-            module.setDesiredState(state)
-
-    def flip_path(self):  # pathplanner needs a function to see if it should mirror a path
-        if DriverStation.getAlliance() == DriverStation.Alliance.kBlue:
-            return False
-        else:
-            return True
-
-    # def follow_pathplanner_trajectory_command(self, trajectory:PathPlannerTrajectory, is_first_path:bool):
-    #     #from pathplannerlib.path import PathPlannerPath
-    #     #from pathplannerlib.commands import FollowPathWithEvents, FollowPathHolonomic
-    #     #from pathplannerlib.config import HolonomicPathFollowerConfig, ReplanningConfig, PIDConstants
-
-    #     # copy of pathplannerlib's method for returning a swervecommand, with an optional odometry reset
-    #     # using the first pose of the trajectory
-    #     if is_first_path:
-    #         reset_cmd = commands2.InstantCommand(self.resetOdometry(trajectory.getInitialTargetHolonomicPose()))
-    #     else:
-    #         reset_cmd = commands2.InstantCommand()
-
-    #     # useful stuff controller.PPHolonomicDriveController, controller.PIDController, auto.FollowPathHolonomic
-    #     swerve_controller_cmd = None
-
-    #     cmd = commands2.SequentialCommandGroup(reset_cmd, swerve_controller_cmd)
-
-    #     return cmd
-
-    # -------------- END PATHPLANNER STUFF
-
-    def reset_keep_angle(self) -> None:
-        """
-        perhaps deprecated because we want to use resetOdometry to reset the gyro
-        """
-        self.last_rotation_time = self.keep_angle_timer.get()  # reset the rotation time
-        self.last_drive_time = self.keep_angle_timer.get()  # reset the drive time
-
-        new_angle = self.get_angle()
-        print(f'  resetting keep angle from {self.keep_angle:.1f} to {new_angle:.1f}', flush=True)
-        self.keep_angle = new_angle
-
-    def perform_keep_angle(self, xSpeed, ySpeed,
-                           rot):  # update rotation if we are drifting when trying to drive straight
-        output = rot  # by default we will return rot unless it needs to be changed
-        if math.fabs(rot) > DriveConstants.k_inner_deadband:  # we are actually intending to rotate
-            self.last_rotation_time = self.keep_angle_timer.get()
-        if math.fabs(xSpeed) > DriveConstants.k_inner_deadband or math.fabs(ySpeed) > DriveConstants.k_inner_deadband:
-            self.last_drive_time = self.keep_angle_timer.get()
-
-        self.time_since_rotation = self.keep_angle_timer.get() - self.last_rotation_time
-        self.time_since_drive = self.keep_angle_timer.get() - self.last_drive_time
-
-        if self.time_since_rotation < 0.5:  # (update keep_angle until 0.5s after rotate command stops to allow rotate to finish)
-            self.keep_angle = self.get_angle()  # todo: double check SIGN (and units are in degrees)
-        elif math.fabs(
-                rot) < DriveConstants.k_inner_deadband and self.time_since_drive < 0.25:  # stop keep_angle .25s after you stop driving
-            # output = self.keep_angle_pid.calculate(-self.get_angle(), self.keep_angle)  # 2023
-            # TODO: figure out if we want YAW or ANGLE, and WHY NOT BE CONSISTENT WITH YAW AND ANGLE?
-            output = self.keep_angle_pid.calculate(self.get_angle(),
-                                                   self.keep_angle)  # 2024 real, can we just use YAW always?
-            output = output if math.fabs(output) < 0.2 else 0.2 * math.copysign(1, output)  # clamp at 0.2
-
-        if self.counter % 20 == 0:
-            SmartDashboard.putNumber('keep_angle_output', output)
-
-        return output
-
-    def setX(self) -> None:
-        """Sets the wheels into an X formation to prevent movement."""
-        angles = [45, -45, -45, 45]
-
-        for angle, swerve_module in zip(angles, self.swerve_modules):
-            swerve_module.setDesiredState(SwerveModuleState(0, Rotation2d.fromDegrees(angle)))
 
     def set_straight(self) -> None:
         """Sets the wheels straight so we can push the robot."""
@@ -1305,38 +1115,32 @@ class DriveSubsystem(Subsystem):
         for angle, swerve_module in zip(angles, self.swerve_modules):
             swerve_module.setDesiredState(SwerveModuleState(0, Rotation2d.fromDegrees(angle)))
 
-    def setModuleStates(self, desiredStates: Tuple[SwerveModuleState]) -> None:
+    def setModuleStates(self, desiredStates: SwerveModuleStats) -> None:
         """Sets the swerve ModuleStates.
+
         :param desiredStates: The desired SwerveModule states.
         """
-        desiredStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(desiredStates, DriveConstants.MAX_TOTAL_SPEED)
-        for idx, m in enumerate(self.swerve_modules):
-            m.setDesiredState(desiredStates[idx])
+        maxSpeed = DriveConstants.MAX_SPEED_METERS_PER_SECOND
 
-    def setDesiredTags(self, desired_tags: List[int]) -> None:
-        self.desired_tags = desired_tags
+        if self.maxSpeedScaleFactor is not None:
+            maxSpeed = maxSpeed * self.maxSpeedScaleFactor()
+
+        desiredStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(desiredStates, maxSpeed)
+
+        for idx, module in enumerate(self.swerve_modules):
+            module.setDesiredState(desiredStates[idx])
+
+    def set_desired_april_tags(self, desired_tags: List[int]) -> None:
+        self._desired_april_tags = desired_tags
 
     def resetEncoders(self) -> None:
-        """Resets the drive encoders to currently read a position of 0."""
+        """
+        Resets the drive encoders to currently read a position of 0
+        """
         [m.resetEncoders() for m in self.swerve_modules]
 
-    # def zeroHeading(self) -> None:
-    #     """Zeroes the heading of the robot."""
-    #     self._gyro.reset()
-    #
-    # zeroGyro = zeroHeading  # Alias
-
-    def lock(self) -> None:
-        print("What does: swerveDrive.lockPose() do")
-
-    # def resetGyroToInitial(self) -> None:
-    #     print(""" What does this do
-    #     {
-    #         zeroGyro();
-    #     swerveDrive.setGyroOffset(new
-    #     Rotation3d());
-    #     }
-    #     """)
+    def resetGyroToInitial(self) -> None:
+        self.gyro.reset()
 
     def setMotorBrake(self, brake: bool) -> None:
         # TODO: Need to actually set the IdleMode to 'brake' since this
@@ -1497,3 +1301,45 @@ class DriveSubsystem(Subsystem):
 
     def is_quest_enabled(self):
         return self.use_quest
+
+    ##########################################################
+    # TODO: All the following are related to team 2429 and pathplanner. These have not been tested and
+    #       we may need to refactor the 'drive()' method above
+
+    #  -------------  THINGS PATHPLANNER NEEDS  - added for pathplanner 20230218 CJH
+    def get_relative_speeds(self) -> ChassisSpeeds:
+        # added for pathplanner 20230218 CJH
+        return DriveConstants.DRIVE_KINEMATICS.toChassisSpeeds(self.get_module_states())
+
+    def drive_robot_relative(self, chassis_speeds: ChassisSpeeds, feedforwards):
+        """
+        feedforwards isn't used at all so pass it whatever
+        """
+        # required for the pathplanner lib's path following based on chassis speeds
+        # idk if we need the feedforwards
+        swerveModuleStates = DriveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(chassis_speeds)
+        swerveModuleStates = SwerveDrive4Kinematics.desaturateWheelSpeeds(swerveModuleStates,
+                                                                          DriveConstants.MAX_TOTAL_SPEED)
+        for state, module in zip(swerveModuleStates, self.swerve_modules):
+            module.setDesiredState(state)
+
+    # def follow_pathplanner_trajectory_command(self, trajectory:PathPlannerTrajectory, is_first_path:bool):
+    #     #from pathplannerlib.path import PathPlannerPath
+    #     #from pathplannerlib.commands import FollowPathWithEvents, FollowPathHolonomic
+    #     #from pathplannerlib.config import HolonomicPathFollowerConfig, ReplanningConfig, PIDConstants
+
+    #     # copy of pathplannerlib's method for returning a swervecommand, with an optional odometry reset
+    #     # using the first pose of the trajectory
+    #     if is_first_path:
+    #         reset_cmd = commands2.InstantCommand(self.resetOdometry(trajectory.getInitialTargetHolonomicPose()))
+    #     else:
+    #         reset_cmd = commands2.InstantCommand()
+
+    #     # useful stuff controller.PPHolonomicDriveController, controller.PIDController, auto.FollowPathHolonomic
+    #     swerve_controller_cmd = None
+
+    #     cmd = commands2.SequentialCommandGroup(reset_cmd, swerve_controller_cmd)
+
+    #     return cmd
+
+    #  END PATHPLANNER STUFF

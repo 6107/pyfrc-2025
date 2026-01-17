@@ -1,0 +1,18 @@
+{
+  "game": "Rebuilt (No Fuel)",
+  "field-image": "2026-rebuilt-no-fuel.png",
+  "field-corners": {
+    "top-left": [
+      524,
+      94
+    ],
+    "bottom-right": [
+      3378,
+      1490
+    ]
+  },
+  "field-size": [
+    16.535,
+    8.069
+  ]
+}

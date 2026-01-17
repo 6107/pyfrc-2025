@@ -17,8 +17,8 @@
 import math
 from typing import Optional
 
-from wpilib import SmartDashboard, RobotBase, Timer
-from wpilib import simulation
+from wpilib import RobotBase
+from wpilib.simulation import SimDeviceSim
 from wpimath.geometry import Rotation2d
 from wpimath.units import degrees, degrees_per_second
 
@@ -42,7 +42,8 @@ class NavX(Gyro):
     def __init__(self, is_reversed: bool):
         super().__init__(is_reversed)
         self._gyro = navx.AHRS.create_spi()
-        self._sim_gyro: Optional[Gyro] = None
+        self._sim_gyro: Optional[SimDeviceSim] = None
+        self._is_simulation = RobotBase.isSimulation()
         self._calibrated = False
 
     def initialize(self) -> None:
@@ -59,41 +60,33 @@ class NavX(Gyro):
     @property
     def calibrated(self) -> bool:
         """
-        Is this gyro calibrated. Implement in derived class if your gyro
-        does not auto-calibrate.
+        Is this gyro calibrated.
         """
         return self._calibrated
 
     @property
     def is_calibrating(self) -> bool:
         """
-        Is this gyro calibrated. Implement in derived class if your gyro
-        does not auto-calibrate.
+        Is this gyro calibrated.
         """
-        return self._gyro.isCalibrating()
+        return self._gyro.isCalibrating() or not self._is_simulation
 
     def reset(self, adjustment=None) -> None:
         """
         Reset the gyro
         """
-        self._gyro.reset()
+        if self._gyro.zeroYaw():
+            self.zero_yaw()
 
-        # if adjustment is not None:
-        #     # ADD adjustment - e.g trying to update the gyro from a pose
-        #     self._gyro.setAngleAdjustment(adjustment)
-        # else:
-        #     # make sure there is no adjustment
-        #     self._gyro.setAngleAdjustment(0)
+        else:
+            self._gyro.reset()
 
     def zero_yaw(self) -> None:
-        self._gyro.zeroYaw()
+        if self._is_simulation:
+            self.sim_yaw = 0.0
 
-        if RobotBase.isSimulation():
-            gyro = simulation.SimDeviceSim("navX-Sensor[4]")
-            gyro_yaw = gyro.getDouble("Yaw")  # for some reason it seems we have to set Yaw and not Angle
-            # gyro_angle = gyro.getDouble("Angle")
-            # gyro_angle.set(0.0)
-            gyro_yaw.set(0.0)
+        else:
+            self._gyro.zeroYaw()
 
     @property
     def yaw(self) -> degrees:
@@ -102,7 +95,7 @@ class NavX(Gyro):
         but you should probably never use this - just use get_angle to be consistent
         because yaw does NOT return the offset that get_Angle does
         """
-        yaw = self._gyro.getYaw()
+        yaw = self._gyro.getYaw() if not self._is_simulation else self.sim_yaw
 
         return -yaw if self._reversed else yaw
 
@@ -110,64 +103,23 @@ class NavX(Gyro):
     def pitch(self) -> degrees:
         pitch_offset = 0  # TODO: Always zero?
 
-        return self._gyro.getPitch() - pitch_offset
+        return self._gyro.getPitch() - pitch_offset if not self._is_simulation else 0.0
 
     @property
     def roll(self) -> degrees:
         roll_offset = 0  # TODO: Always zero?
 
-        return self._gyro.getRoll() - roll_offset
+        return self._gyro.getRoll() - roll_offset if not self._is_simulation else 0.0
 
     @property
     def raw_angle(self) -> degrees:
-        return self._gyro.getYaw()
+        return self._gyro.getYaw() if not self._is_simulation else 0.0
 
     @property
     def angle(self) -> degrees:
-        angle = self._gyro.getAngle()
+        angle = self._gyro.getAngle() if not self._is_simulation else self.sim_yaw
 
         return -angle if self._reversed else angle
-
-    @property
-    def heading(self) -> Rotation2d:
-        """
-        Returns the heading of the robot
-        """
-        now = Timer.getFPGATimestamp()
-        past = self._lastGyroAngleTime
-        state = "ok"
-
-        if not self._gyro.isConnected():
-            state = "disconnected"
-        else:
-            notCalibrating = True
-            if self._gyro.isCalibrating():
-                notCalibrating = False
-                state = "calibrating"
-
-            raw_angle = self.raw_angle
-            gyroAngle = -raw_angle if self._reversed else raw_angle
-
-            # correct for gyro drift
-            if self.gyroOvershootFraction != 0.0 and self._lastGyroAngle != 0 and notCalibrating:
-                angleMove = gyroAngle - self._lastGyroAngle
-                if abs(angleMove) > 15:  # if less than 10 degrees, adjust (otherwise it's some kind of glitch or reset)
-                    print(f"WARNING: big angle move {angleMove} from {self._lastGyroAngle} to {gyroAngle}")
-                else:
-                    adjustment = -angleMove * self.gyroOvershootFraction
-                    self._lastGyroAngleAdjustment += adjustment
-                    self._gyro.setAngleAdjustment(max(-359, min(+359, self._lastGyroAngleAdjustment)))
-                    # ^^ NavX code doesn't like angle adjustments outside (-360..+360) range
-
-            self._lastGyroAngle = gyroAngle
-            self._lastGyroAngleTime = now
-
-        if state != self._lastGyroState:
-            SmartDashboard.putString("gyro/state", f"{state} after {int(now - past)}s")
-            self._lastGyroState = state
-
-        last_angle = self._lastGyroAngle
-        return Rotation2d.fromDegrees(last_angle)
 
     @property
     def turn_rate(self) -> float:
@@ -215,7 +167,7 @@ class NavX(Gyro):
         super().sim_init(physics_controller)
 
         # NavX (SPI interface)
-        self._sim_gyro = simulation.SimDeviceSim("navX-Sensor[4]")
+        self._sim_gyro: SimDeviceSim = SimDeviceSim("navX-Sensor[4]")
 
     @property
     def sim_yaw(self) -> degrees:
@@ -230,4 +182,4 @@ class NavX(Gyro):
         if self._reversed:
             value = -value
 
-        self._sim_gyro_state.set_raw_yaw(value)
+        self._sim_gyro.setDouble("yaw", value)

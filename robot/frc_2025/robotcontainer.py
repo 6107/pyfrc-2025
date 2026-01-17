@@ -129,9 +129,6 @@ class RobotContainer:
                 }
                 camera_subsystems.append(self.rear_camera)
 
-        # # From the 2025 Java (TODO: Get the JSON files from swerve/neo and update our python code/validate it)
-        # filePath = os.path.join(getDeployDirectory(), "swerve/neo")
-        # self.robot_drive = SwerveSubsystem(filePath)
         self.robot_drive = DriveSubsystem(self, **drive_kwargs)
 
         if FRONT_CAMERA_TYPE == CAMERA_TYPE_LIMELIGHT:
@@ -346,7 +343,10 @@ class RobotContainer:
             controller.a().onTrue(cmd.runOnce(lambda: self.robot_drive.zeroGyro))
             controller.y().whileTrue(cmd.runOnce(lambda: self.robot_drive.lock,
                                                  self.robot_drive).repeatedly())
-            controller.start().onTrue(cmd.runOnce(lambda: self.robot_drive.resetGyroToInitial))
+
+            # TODO:  The Start button is the small menu button with three lines. Do we want this enabled
+            #
+            # controller.start().onTrue(cmd.runOnce(lambda: self.robot_drive.resetGyroToInitial))
 
             # controller.leftBumper().onTrue(driveRobotOrientedAngularVelocity)
             # controller.rightBumper().onTrue(driveFieldOrientedAngularVelocity)
@@ -389,11 +389,11 @@ class RobotContainer:
         self.chosenLimiter = SendableChooser()
 
         # you can also set the default option, if needed
-        self.chosenLimiter.setDefaultOption("10%", 0.1)
+        self.chosenLimiter.addOption("10%", 0.1)
         self.chosenLimiter.addOption("20%", 0.2)
         self.chosenLimiter.addOption("40%", 0.4)
         self.chosenLimiter.addOption("60%", 0.6)
-        self.chosenLimiter.addOption("100%", 1.0)
+        self.chosenLimiter.setDefaultOption("100%", 1.0)
 
         SmartDashboard.putData("Drive rate limiter", self.chosenLimiter)
 

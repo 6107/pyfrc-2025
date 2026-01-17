@@ -15,7 +15,7 @@
 #    Jemison High School - Huntsville Alabama                              #
 # ------------------------------------------------------------------------ #
 #
-#   2026 - Rebuilt
+#   2026 - Rebuilt      (All measuments are in meters)
 #
 import logging
 import math
@@ -23,34 +23,48 @@ import math
 from wpimath.geometry import Pose2d, Rotation2d
 from wpimath.units import inchesToMeters
 
-from lib_6107.util.game import field_flip_pose2d
-
 # Setup Logging
 logger = logging.getLogger(__name__)
 
-FIELD_X_SIZE = 17.55
-FIELD_Y_SIZE = 8.05
+FIELD_X_SIZE = 16.54
+FIELD_Y_SIZE = 8.07
 CENTER_LINE = FIELD_X_SIZE / 2
 MID_FIELD = FIELD_Y_SIZE / 2
 
-BLUE_START_LINE = inchesToMeters(144 - 14 + 93.5 + 88)
-RED_START_LINE = inchesToMeters(FIELD_Y_SIZE - BLUE_START_LINE)
+BLUE_START_LINE = inchesToMeters(182.11 - (47 / 2) - 2)
+RED_START_LINE = FIELD_X_SIZE - inchesToMeters(182.11 - (47 / 2) - 2)
+
+BLUE_BUMP_X_CENTER = inchesToMeters(182.11)
+RED_BUMP_X_CENTER = FIELD_X_SIZE - inchesToMeters(182.11)
 
 BLUE_TEST_POSE = {
-    1: Pose2d(BLUE_START_LINE, FIELD_Y_SIZE * 0.75, Rotation2d(math.pi)),
-    2: Pose2d(BLUE_START_LINE, MID_FIELD, Rotation2d(math.pi)),
-    3: Pose2d(BLUE_START_LINE, FIELD_Y_SIZE * 0.25, Rotation2d(math.pi))
+    1: Pose2d(BLUE_START_LINE, 7.3, Rotation2d(math.pi)),
+    2: Pose2d(BLUE_START_LINE, 6.16, Rotation2d(math.pi)),
+    3: Pose2d(BLUE_START_LINE, 0.9, Rotation2d(math.pi))
 }
 RED_TEST_POSE = {
-    1: field_flip_pose2d(BLUE_TEST_POSE[3]),
-    2: field_flip_pose2d(BLUE_TEST_POSE[2]),
-    3: field_flip_pose2d(BLUE_TEST_POSE[1])
+    1: Pose2d(RED_START_LINE, 0.9, 0),
+    2: Pose2d(RED_START_LINE, 1.9, 0),
+    3: Pose2d(RED_START_LINE, 7.3, 0)
 }
 
+# In simulation, the software will not enforce a maximum field
+# size, so this needs to be accounted for so the robot stays on
+# The field.
+#
+# The values below do not account the size of the robot
 
-# BLUE_PODIUM_1 = Pose2d(Translation2d(0.48, CENTER_LINE - ), Rotation2d(math.pi))
-# RED_PODIUM = field_flip_pose2d(BLUE_PODIUM)
+SIM_X_OFFSET_METERS = 0.140
+SIM_Y_OFFSET_METERS = 0.95
 
+# Add something with the AprilTags that are in this filed.  Call the drivetrain
+# SetDesiredAprilTags() function.
+
+json_file_path = '2026_field_layout.json'
+
+import robotpy_apriltag
+
+robotpy_apriltag.AprilTagFieldLayout.loadField()
 
 class RebuiltField:
     """
@@ -65,4 +79,15 @@ class RebuiltField:
 
     All values are in meters
     """
-    pass
+
+    @staticmethod
+    def in_blue_alliance_zone(x: float) -> bool:
+        return x < inchesToMeters(182.11)
+
+    @staticmethod
+    def in_red_alliance_zone(x: float) -> bool:
+        return x > FIELD_X_SIZE - inchesToMeters(182.11)
+
+    @staticmethod
+    def in_neutral_zone(x: float) -> bool:
+        return inchesToMeters(182.11) < x < FIELD_X_SIZE - inchesToMeters(182.11)

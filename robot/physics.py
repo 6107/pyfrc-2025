@@ -28,8 +28,11 @@
 #
 # Examples can be found at https://github.com/robotpy/examples
 import inspect
+import json
+import os
 
 from pyfrc.physics.core import PhysicsInterface
+from wpilib import getDeployDirectory
 
 from frc_2025.field import *
 from robot import MyRobot
@@ -72,6 +75,20 @@ class PhysicsEngine:
         self._alliance_change(self._robot.container.is_red_alliance,
                               self._robot.container.alliance_location)
 
+        # For field simulation
+        self._robot_x_width = 0.7  # About 2 inches and includes the bumpers
+        self._robot_y_width = 0.7
+        try:
+            path = os.path.join(getDeployDirectory(), 'pathplanner', 'settings.json')
+
+            with open(path, 'r') as f:
+                settings = json.loads(f.read())
+                self._robot_x_width = settings.get("robotWidth", self._robot_x_width)
+                self._robot_y_width = settings.get("robotWidth", self._robot_y_width)
+
+        except FileNotFoundError:
+            pass
+
         # TODO: If vision odometry is supported in simulation, this may need to be
         #       changed to the robot's field view and not the 'overhead' view of the
         #       playing field.
@@ -87,7 +104,9 @@ class PhysicsEngine:
         """
         kwargs = {
             "now": now,
-            "tm_diff": tm_diff
+            "tm_diff": tm_diff,
+            "robot_x_offset": self._robot_x_width / 2,
+            "robot_y_offset": self._robot_y_width / 2,
         }
         total_amps_used: float = 0.0
 

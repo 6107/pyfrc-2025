@@ -34,12 +34,6 @@ class Gyro(GyroIO):
     def __init__(self, is_reversed: bool) -> None:
         super().__init__()
 
-        # TODO: original gyro attributes below from the Java 2025 code.
-        self._lastGyroAngleTime = 0
-        self._lastGyroAngle = 0
-        self._lastGyroAngleAdjustment = 0
-        self._lastGyroState = "ok"
-
         self._reversed = is_reversed
         self._sim_gyro: Optional[Gyro] = None
         self._physics_controller: Optional['PhysicsInterface'] = None
@@ -109,7 +103,7 @@ class Gyro(GyroIO):
         """
         Returns the heading of the robot
         """
-        raise NotImplemented("Implement in derived class")
+        return Rotation2d.fromDegrees(self.yaw)
 
     @property
     def turn_rate(self) -> float:
