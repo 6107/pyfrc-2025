@@ -54,7 +54,7 @@ RED_TEST_POSE = {
 #
 # The values below do not account the size of the robot
 
-SIM_X_OFFSET_METERS = 0.140
+IM_X_OFFSET_METERS = 0.1406
 SIM_Y_OFFSET_METERS = 0.95
 
 # Add something with the AprilTags that are in this filed.  Call the drivetrain
