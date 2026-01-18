@@ -219,7 +219,7 @@ class ApproachTag(commands2.Command):
 
         # good ways to finish
         elif self.tReachedFinalApproach != 0:
-            length = (self.drivetrain.getPose().translation() - self.xyReachedFinalApproach).norm()
+            length = (self.drivetrain.get_pose().translation() - self.xyReachedFinalApproach).norm()
             if now > self.tReachedFinalApproach + self.finalApproachSeconds:
                 self.finished = f"approached within {now - self.tReachedFinalApproach}s, drove {length}m"
 
@@ -265,7 +265,7 @@ class ApproachTag(commands2.Command):
             if self.finalApproachSeconds > 0:
                 completedPercentage = (now - self.tReachedFinalApproach) / self.finalApproachSeconds
                 if self.finalApproachMinDistance > 0:
-                    completedDistance = (self.drivetrain.getPose().translation() - self.xyReachedFinalApproach).norm()
+                    completedDistance = (self.drivetrain.get_pose().translation() - self.xyReachedFinalApproach).norm()
                     if completedDistance < self.finalApproachMinDistance:
                         completedPercentage = 0.0  # if min distance is not met, don't even slow down
                 fwdSpeed = self.finalApproachSpeed * max((0.0, 1.0 - completedPercentage))
@@ -367,7 +367,7 @@ class ApproachTag(commands2.Command):
         if self.tReachedGlidePath != 0 and self.tReachedFinalApproach == 0 and robotX > 0:
             SmartDashboard.putString("command/c" + self.__class__.__name__, "reached final approach")
             self.tReachedFinalApproach = now
-            self.xyReachedFinalApproach = self.drivetrain.getPose().translation()
+            self.xyReachedFinalApproach = self.drivetrain.get_pose().translation()
             print(f"final approach starting from {self.xyReachedFinalApproach}")
 
         # if we already reached the glide path, and we want nonzero final approach (after reaching desired size)

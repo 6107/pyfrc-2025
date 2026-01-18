@@ -23,6 +23,7 @@ from collections import deque
 from dataclasses import dataclass
 
 import commands2
+
 try:
     from photonlibpy.photonCamera import PhotonCamera
     PHOTONLIB_SUPPORTED = True
@@ -167,7 +168,7 @@ if PHOTONLIB_SUPPORTED:
 
             self.skippedTags.clear()
             now = Timer.getFPGATimestamp()
-            robotPose = self.drivetrain.getPose()
+            robotPose = self.drivetrain.get_pose()
             learningRate = self.LEARNING_RATE * self.learningRateMult.getSelected()
             intersectionReady = True
 
@@ -302,7 +303,7 @@ if PHOTONLIB_SUPPORTED:
 
             # debug
             # print(f"tag {tagId}: yaw={tag.getYaw()}, distanceInch={distance/0.0254}, posInCamFrame={tagInCameraFrame.x},{tagInCameraFrame.y}, posInRobotFrame={tagInRobotFrame.x},{tagInRobotFrame.y}")
-            # self.fieldDrawing.getObject("tag-seen").setPose(Pose2d(tagLocationIfOdometryCorrect, tagDirection))
+            # self.fieldDrawing.getObject("tag-seen").set_pose(Pose2d(tagLocationIfOdometryCorrect, tagDirection))
 
             shiftMeters = tagLocation2d - tagLocationIfOdometryCorrect
             if redrawing:

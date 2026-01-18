@@ -104,7 +104,7 @@ class AimToDirection(commands2.Command):
 
         # if we are pretty close to the direction we wanted, consider the command finished
         if abs(degreesRemaining) < AimToDirectionConstants.kAngleToleranceDegrees:
-            turnVelocity = self.drivetrain.getTurnRateDegreesPerSec()
+            turnVelocity = self.drivetrain.gyro.turn_rate_degrees_per_second
             SmartDashboard.putString("command/c" + self.__class__.__name__, "good angle")
             if abs(turnVelocity) < AimToDirectionConstants.kAngleVelocityToleranceDegreesPerSec:
                 SmartDashboard.putString("command/c" + self.__class__.__name__, "completed")

@@ -28,7 +28,8 @@ from wpilib import SmartDashboard
 from wpimath.geometry import Rotation2d, Translation2d
 
 from frc_2025.subsystems.swervedrive.constants import AutoConstants
-from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem, DriveConstants
+from frc_2025.subsystems.swervedrive.constants import DriveConstants
+from frc_2025.subsystems.swervedrive.drivesubsystem2025 import DriveSubsystem2025 as DriveSubsystem
 from lib_6107.commands.drivetrain.aimtodirection import AimToDirectionConstants
 
 
@@ -69,7 +70,7 @@ class GoToPoint(commands2.Command):
             self.finishDirection = self.finishDirection.rotateBy(GoToPoint.REVERSE_DIRECTION)
 
     def initialize(self):
-        self.initialPosition = self.drivetrain.getPose().translation()
+        self.initialPosition = self.drivetrain.get_pose().translation()
         if self.finishDirection is not None:
             self.desiredEndDirection = self.finishDirection
         else:
@@ -83,7 +84,7 @@ class GoToPoint(commands2.Command):
 
     def execute(self):
         # 1. to which direction we should be pointing?
-        currentPose = self.drivetrain.getPose()
+        currentPose = self.drivetrain.get_pose()
         currentDirection = currentPose.rotation()
         currentPoint = currentPose.translation()
         targetDirectionVector = self.targetPosition - currentPoint
@@ -155,7 +156,7 @@ class GoToPoint(commands2.Command):
 
     def isFinished(self) -> bool:
         # 1. did we reach the point where we must move very slow?
-        currentPose = self.drivetrain.getPose()
+        currentPose = self.drivetrain.get_pose()
         currentPosition = currentPose.translation()
         distanceFromInitialPosition = self.initialPosition.distance(currentPosition)
 

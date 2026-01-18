@@ -27,7 +27,7 @@ import commands2
 from wpilib import SmartDashboard
 from wpimath.geometry import Rotation2d, Translation2d, Pose2d
 
-from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem
+from frc_2025.subsystems.swervedrive.drivesubsystem2025 import DriveSubsystem2025 as DriveSubsystem
 from lib_6107.commands.drivetrain.aimtodirection import AimToDirectionConstants
 from lib_6107.commands.drivetrain.gotopoint import GoToPointConstants
 
@@ -56,7 +56,7 @@ class SwerveToPoint(commands2.Command):
         self.overshot = False
 
     def initialize(self):
-        initialPose = self.drivetrain.getPose()
+        initialPose = self.drivetrain.get_pose()
         self.initialPosition = initialPose.translation()
 
         targetHeading = initialPose.rotation() if self.targetHeading is None else self.targetHeading
@@ -68,7 +68,7 @@ class SwerveToPoint(commands2.Command):
         SmartDashboard.putString("command/c" + self.__class__.__name__, "running")
 
     def execute(self):
-        currentXY = self.drivetrain.getPose()
+        currentXY = self.drivetrain.get_pose()
         xDistance, yDistance = self.targetPose.x - currentXY.x, self.targetPose.y - currentXY.y
         totalDistance = self.targetPose.translation().distance(currentXY.translation())
 
@@ -109,7 +109,7 @@ class SwerveToPoint(commands2.Command):
             SmartDashboard.putString("command/c" + self.__class__.__name__, "interrupted")
 
     def isFinished(self) -> bool:
-        currentPose = self.drivetrain.getPose()
+        currentPose = self.drivetrain.get_pose()
         currentPosition = currentPose.translation()
 
         # did we overshoot?
@@ -134,7 +134,7 @@ class SwerveToPoint(commands2.Command):
     def getDegreesLeftToTurn(self):
         # can we get rid of this function by using Rotation2d? probably we can
 
-        currentHeading = self.drivetrain.getPose().rotation()
+        currentHeading = self.drivetrain.get_pose().rotation()
         degreesLeftToTurn = (self.targetPose.rotation() - currentHeading).degrees()
 
         # if we have +350 degrees left to turn, this really means we have -10 degrees left to turn
@@ -173,7 +173,7 @@ class SwerveMove(commands2.Command):
         self.subcommand = None
 
     def initialize(self):
-        position = self.drivetrain.getPose()
+        position = self.drivetrain.get_pose()
         heading = self.desiredHeading() if self.desiredHeading is not None else position.rotation()
         tgt = position.translation() + Translation2d(x=-self.metersBackwards, y=self.metersToTheLeft).rotateBy(heading)
         self.subcommand = SwerveToPoint(

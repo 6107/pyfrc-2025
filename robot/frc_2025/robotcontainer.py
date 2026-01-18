@@ -21,17 +21,15 @@ import time
 from typing import List, Optional, Callable, Dict, Any
 
 from commands2 import Subsystem, Command, RunCommand, InstantCommand, cmd, button
+from phoenix6 import swerve
 from wpilib import RobotBase, XboxController, SmartDashboard, SendableChooser, Field2d, DriverStation
+from wpimath.units import rotationsToRadians
 
 from frc_2025 import constants
-from frc_2025.commands.holonomicdrive import HolonomicDrive
-from frc_2025.subsystems.alge_subsystem import AlgeSubsystem, AlgeRoller, AlgeRotation
-from frc_2025.subsystems.constants import DeviceID, FRONT_CAMERA_TYPE, CAMERA_TYPE_LIMELIGHT, \
+from frc_2025.generated.tuner_constants import TunerConstants
+from frc_2025.subsystems.constants import FRONT_CAMERA_TYPE, CAMERA_TYPE_LIMELIGHT, \
     CAMERA_TYPE_PHOTONVISION, FRONT_CAMERA_POSE_AND_HEADING, REAR_CAMERA_TYPE
-from frc_2025.subsystems.coral_intake import LeftCoralIntake, RightCoralIntake, ExtendCoralIntake
-from frc_2025.subsystems.elevator_subsystem import Elevator
-from frc_2025.subsystems.swervedrive.constants import OIConstants
-from frc_2025.subsystems.swervedrive.drivesubsystem import DriveSubsystem
+from frc_2025.telemetry import Telemetry
 from lib_6107.commands.camera.follow_object import FollowObject, StopWhen
 from lib_6107.commands.drivetrain.aimtodirection import AimToDirection
 from lib_6107.commands.drivetrain.arcade_drive import ArcadeDrive
@@ -60,7 +58,6 @@ class RobotContainer:
     periodic methods (other than the scheduler calls). Instead, the structure of the robot (including
     subsystems, commands, and button mappings) should be declared here.
     """
-
     def __init__(self, robot: 'MyRobot') -> None:
         # The robot's subsystems
         logger.debug("*** called container __init__")
@@ -68,6 +65,27 @@ class RobotContainer:
         self.robot = robot
         self.simulation = RobotBase.isSimulation()
 
+        # Phoenix6 max settings and telemetry support
+        self._max_speed = (1.0 * TunerConstants.speed_at_12_volts)  # speed_at_12_volts desired top speed
+        self._max_angular_rate = rotationsToRadians(0.75)  # 3/4 of a rotation per second max angular velocity
+        self._logger = Telemetry(self._max_speed)
+
+        # Setting up bindings for necessary control of the Phoenix6 swerve drive platform
+        self._drive = (
+            swerve.requests.FieldCentric()
+            .with_deadband(self._max_speed * 0.1)
+            .with_rotational_deadband(self._max_angular_rate * 0.1)  # Add a 10% deadband
+            .with_drive_request_type(swerve.SwerveModule.DriveRequestType.OPEN_LOOP_VOLTAGE)
+        # Use open-loop control for drive motors
+        )
+        self._brake = swerve.requests.SwerveDriveBrake()
+        self._point = swerve.requests.PointWheelsAt()
+        self._forward_straight = (
+            swerve.requests.RobotCentric()
+            .with_drive_request_type(
+                swerve.SwerveModule.DriveRequestType.OPEN_LOOP_VOLTAGE
+            )
+        )
         # Alliance support
         self._is_red_alliance: bool = False  # Coordinate system based off of blue being to the 'left'
         self._alliance_location: int = 1  # Valid numbers are 1, 2, 3
@@ -84,6 +102,8 @@ class RobotContainer:
 
         ########################################################
         # Subsystem initialization
+        #
+        #   VISION
         #
         camera_subsystems = []
         self.localizer = None
@@ -129,7 +149,8 @@ class RobotContainer:
                 }
                 camera_subsystems.append(self.rear_camera)
 
-        self.robot_drive = DriveSubsystem(self, **drive_kwargs)
+        # self.robot_drive = DriveSubsystem(self, **drive_kwargs)
+        self.robot_drive = TunerConstants.create_drivetrain(self, **drive_kwargs)
 
         if FRONT_CAMERA_TYPE == CAMERA_TYPE_LIMELIGHT:
             # TODO: Make pose and heading below as constants
@@ -147,29 +168,12 @@ class RobotContainer:
         else:
             self.localizer = None
 
-        # TODO: Create subsystems for the following and then commands instead of the periodic check
-        self._elevator: Subsystem = Elevator(DeviceID.ELEVATOR_DEVICE_ID,
-                                             self)  # Device ID is 10 (as configured in the Phoenix Tuner)
-
-        self._alge_subsystem: AlgeSubsystem = AlgeSubsystem(DeviceID.ALGE_ROLLER_DEVICE_ID,
-                                                            DeviceID.ALGE_ROTATION_DEVICE_ID,
-                                                            self)
-
-        self._intake_left: LeftCoralIntake = LeftCoralIntake(DeviceID.INTAKE_LEFT_DEVICE_ID, self)
-        self._intake_right: RightCoralIntake = RightCoralIntake(DeviceID.INTAKE_RIGHT_DEVICE_ID, self)
-        self._intake_extend: ExtendCoralIntake = ExtendCoralIntake(DeviceID.INTAKE_EXTEND_DEVICE_ID, self)
-
         # Now save off our subsystems. The robot core code will already call the periodic() function
         # as needed, but having our own list (iterated in order) allows us to move much of
         # the other subsystem 'tasks' into a generic loop.
 
         self.subsystems: List[Subsystem] = camera_subsystems + [
             self.robot_drive,
-            self._elevator,
-            self._alge_subsystem,  # Alge should always be called before intake logic
-            self._intake_left,
-            self._intake_right,
-            self._intake_extend  # Call last of the intakes since it may set 'shoot' to false
         ]
         ########################################################
         # Configure the button bindings
@@ -207,17 +211,17 @@ class RobotContainer:
             if hid_axis.kRightX != 2:
                 right_axis_x = XboxController.Axis.kLeftTrigger
 
-        drive_cmd = HolonomicDrive(self,
-                                   self.robot_drive,
-                                   forwardSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftY),
-                                   leftSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftX),
-                                   rotationSpeed=lambda: -self.driver_controller.getRawAxis(right_axis_x),
-                                   deadband=OIConstants.DRIVE_DEADBAND,
-                                   field_relative=field_relative,
-                                   rateLimit=True,
-                                   square=True)
-
-        self.robot_drive.setDefaultCommand(drive_cmd)
+        # drive_cmd = HolonomicDrive(self,
+        #                            self.robot_drive,
+        #                            forwardSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftY),
+        #                            leftSpeed=lambda: -self.driver_controller.getRawAxis(XboxController.Axis.kLeftX),
+        #                            rotationSpeed=lambda: -self.driver_controller.getRawAxis(right_axis_x),
+        #                            deadband=OIConstants.DRIVE_DEADBAND,
+        #                            field_relative=field_relative,
+        #                            rateLimit=True,
+        #                            square=True)
+        #
+        # self.robot_drive.setDefaultCommand(drive_cmd)
         #
         # # TODO: Move pathfinding init here so it is ready for autonomous mode
         #
@@ -225,18 +229,6 @@ class RobotContainer:
     @property
     def elevator(self) -> Subsystem:
         return self._elevator
-
-    @property
-    def alge_subsystem(self) -> AlgeSubsystem:
-        return self._alge_subsystem
-
-    @property
-    def alge_roller(self) -> AlgeRoller:
-        return self.alge_subsystem.alge_roller
-
-    @property
-    def alge_rotation(self) -> AlgeRotation:
-        return self.alge_subsystem.alge_rotation
 
     @property
     def intake_left(self) -> Subsystem:
@@ -321,6 +313,80 @@ class RobotContainer:
         return time.time() - self.start_time
 
     def configureButtonBindings_xbox(self, controller, is_driver: bool) -> None:
+
+        # Note that X is defined as forward according to WPILib convention,
+        # and Y is defined as to the left according to WPILib convention.
+        self.robot_drive.setDefaultCommand(
+            # Drivetrain will execute this command periodically
+            self.robot_drive.apply_request(
+                lambda: (
+                    self._drive.with_velocity_x(
+                        -self.driver_controller.getLeftY() * self._max_speed
+                    )  # Drive forward with negative Y (forward)
+                    .with_velocity_y(
+                        -self.driver_controller.getLeftX() * self._max_speed
+                    )  # Drive left with negative X (left)
+                    .with_rotational_rate(
+                        -self.driver_controller.getRightX() * self._max_angular_rate
+                    )  # Drive counterclockwise with negative X (left)
+                )
+            )
+        )
+        from commands2.sysid import SysIdRoutine
+
+        from wpimath.geometry import Rotation2d
+        from commands2.button import Trigger
+        # Idle while the robot is disabled. This ensures the configured
+        # neutral mode is applied to the drive motors while disabled.
+        idle = swerve.requests.Idle()
+        Trigger(DriverStation.isDisabled).whileTrue(
+            self.robot_drive.apply_request(lambda: idle).ignoringDisable(True)
+        )
+
+        self.driver_controller.a().whileTrue(self.robot_drive.apply_request(lambda: self._brake))
+        self.driver_controller.b().whileTrue(
+            self.robot_drive.apply_request(
+                lambda: self._point.with_module_direction(
+                    Rotation2d(-self.driver_controller.getLeftY(), -self.driver_controller.getLeftX())
+                )
+            )
+        )
+
+        self.driver_controller.povUp().whileTrue(
+            self.robot_drive.apply_request(
+                lambda: self._forward_straight.with_velocity_x(0.5).with_velocity_y(0)
+            )
+        )
+        self.driver_controller.povDown().whileTrue(
+            self.robot_drive.apply_request(
+                lambda: self._forward_straight.with_velocity_x(-0.5).with_velocity_y(0)
+            )
+        )
+
+        # Run SysId routines when holding back/start and X/Y.
+        # Note that each routine should be run exactly once in a single log.
+        (self.driver_controller.back() & self.driver_controller.y()).whileTrue(
+            self.robot_drive.sys_id_dynamic(SysIdRoutine.Direction.kForward)
+        )
+        (self.driver_controller.back() & self.driver_controller.x()).whileTrue(
+            self.robot_drive.sys_id_dynamic(SysIdRoutine.Direction.kReverse)
+        )
+        (self.driver_controller.start() & self.driver_controller.y()).whileTrue(
+            self.robot_drive.sys_id_quasistatic(SysIdRoutine.Direction.kForward)
+        )
+        (self.driver_controller.start() & self.driver_controller.x()).whileTrue(
+            self.robot_drive.sys_id_quasistatic(SysIdRoutine.Direction.kReverse)
+        )
+
+        # reset the field-centric heading on left bumper press
+        self.driver_controller.leftBumper().onTrue(
+            self.robot_drive.runOnce(self.robot_drive.seed_field_centric)
+        )
+
+        self.robot_drive.register_telemetry(
+            lambda state: self._logger.telemeterize(state)
+        )
+
         """
         Use this method to define your button->command mappings. Buttons can be created by
         instantiating a :GenericHID or one of its subclasses (Joystick or XboxController),
